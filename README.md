@@ -3,6 +3,9 @@
 This is a repo for "Self-training from Self-memory" (STSM). We test our self-training model over two datasets, DART and E2E NLG. To check examples of NLG datasets, see https://quest.ms.mff.cuni.cz/nlg/tabgenie.
 
 # Dependencies
+* Python 3.8.x or later
+* transformers  4.30.2
+* torch 2.0.1+cu117 (no sure with previous versions)
 
 # Training parameters
 
