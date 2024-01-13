@@ -1,6 +1,6 @@
 # Introduction
 
-This is a repo for "Self-training from Self-memory" (STSM). We test our self-training model over two datasets, DART and E2E NLG.
+This is a repo for "Self-training from Self-memory" (STSM). We test our self-training model over two datasets, DART and E2E NLG. To check examples of NLG datasets, see https://quest.ms.mff.cuni.cz/nlg/tabgenie.
 
 # DART
 ### FULL TRAIN
