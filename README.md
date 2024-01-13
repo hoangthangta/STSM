@@ -1,5 +1,6 @@
-# Self-training-from-Self-memory
-Self-training from Self-memory
+# Introduction
+
+This is a repo for "Self-training from Self-memory" (STSM). We test our self-training model over two datasets, DART and E2E NLG.
 
 # DART
 ## FULL TRAIN
@@ -76,4 +77,4 @@ python3 seq2seq.py --mode test --test_file "dataset/e2e_nlg/test.json" --model_n
 python3 seq2seq.py --mode generate --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg"
 
 # Author Information
-tahoangthang@gmail.com
+If you have any questions, please open issues or contact tahoangthang@gmail.com.
