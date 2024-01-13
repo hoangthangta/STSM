@@ -48,6 +48,17 @@ accelerate launch seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_fo
 ### 30% FIXED DATA + WITHOUT SELF MEMORY: TYPE 2
 accelerate launch seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --same_data 1 --eval_metric "eval_meteor" --no_self_mem 1 --same_data_type 2
 
+### 30% RANDOM DATA + WITH NEW DATA + WITH T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 1 --self_train_t2d 1 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
+
+### 30% RANDOM DATA + WITH NEW DATA + WITHOUT T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 1 --self_train_t2d 0 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
+
+### 30% RANDOM DATA + WITHOUT NEW DATA + WITH T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 0 --self_train_t2d 1 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
+
+### 30% RANDOM DATA + WITHOUT NEW DATA + WITHOUT T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 0 --self_train_t2d 0 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
 
 ### 30% RANDOM DATA + WITHOUT SELF MEMORY: TYPE 3
 python seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --same_data 0 --eval_metric "eval_meteor" --no_self_mem 1
@@ -85,6 +96,17 @@ accelerate launch seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_fo
 ### 30% FIXED DATA + WITHOUT SELF MEMORY: TYPE 2
 accelerate launch seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "e2e_nlg" --source_prefix "" --same_data 1 --eval_metric "eval_meteor" --no_self_mem 1 --same_data_type 2
 
+### 30% RANDOM DATA + WITH NEW DATA + WITH T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "e2e_nlg" --source_prefix "" --merge_new_data 1 --self_train_t2d 1 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
+
+### 30% RANDOM DATA+ WITH NEW DATA + WITHOUT T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "e2e_nlg" --source_prefix "" --merge_new_data 1 --self_train_t2d 0 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
+
+### 30% RANDOM DATA + WITHOUT NEW DATA + WITH T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 0 --self_train_t2d 1 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
+
+### 30% RANDOM DATA + WITHOUT NEW DATA + WITHOUT T2D
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "e2e_nlg" --source_prefix "" --merge_new_data 0 --self_train_t2d 0 --same_data 0 --eval_metric "eval_meteor" --t2d_opt_metric "osf"
 
 ### 30% RANDOM DATA + WITHOUT SELF MEMORY: TYPE 3
 python seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --same_data 0 --eval_metric "eval_meteor" --no_self_mem 1
