@@ -37,10 +37,10 @@ python3 seq2seq.py --mode self_train --epoch 3 --batch_size 2 --use_force_words 
 accelerate launch seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --same_data 0 --eval_metric "eval_meteor" --no_self_mem 1 
 
 ## INFERENCE
-python3 seq2seq.py --mode test --test_file "dataset/dart/test.json" --model_name "facebook/bart-base" --output_dir "output/t5-base/dart/data2text/self_train_2/checkpoint-2350" -source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart"
+python3 seq2seq.py --mode test --test_file "dataset/dart/test.json" --model_name "facebook/bart-base" --output_dir "output/xxx" -source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart"
 
 ## GENERATE
-python3 seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/t5-base/dart/data2text/no_self_mem_3/checkpoint-2350" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart" 
+python3 seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart" 
 
 # E2E NLG
 ## FULLTRAIN
