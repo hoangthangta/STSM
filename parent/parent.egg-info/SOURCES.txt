@@ -1,0 +1,10 @@
+README.md
+setup.py
+parent/__init__.py
+parent/parent.py
+parent.egg-info/PKG-INFO
+parent.egg-info/SOURCES.txt
+parent.egg-info/dependency_links.txt
+parent.egg-info/entry_points.txt
+parent.egg-info/requires.txt
+parent.egg-info/top_level.txt
