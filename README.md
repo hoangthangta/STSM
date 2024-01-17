@@ -126,5 +126,11 @@ python seq2seq.py --mode test --test_file "dataset/e2e_nlg/test.json" --model_na
 ### GENERATE
 python seq2seq.py --mode generate --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg"
 
+# OTHER SELF-TRAINING
+If you already have pre-trained D2T and T2D models, you can continue to self-train them. For example, self-train on DART:
+
+python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 0 --self_train_t2d 1 --same_data 1 --eval_metric "eval_meteor" --t2d_opt_metric "osf" --load_trained 1 --d2t_model_path "url_pretrained_model" --t2d_model_path  "url_pretrained_model"
+
+
 # Author Information
 If you have any questions, please open issues or contact tahoangthang@gmail.com.
