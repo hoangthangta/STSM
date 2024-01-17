@@ -5,9 +5,9 @@ This is a repo for "Self-training from Self-memory" (STSM). We test our self-tra
 ![Alt text](model.png?raw=true "STSM model")
 
 # Dependencies
-* Python 3.8.x or later
-* transformers  4.30.2
-* torch 2.0.1+cu117 (no sure with previous versions)
+* Python >= 3.8.x 
+* transformers >= 4.30.2
+* torch >= 2.0.1+cu117 (not sure with previous versions)
 
 # Training parameters
 
