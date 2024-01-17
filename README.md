@@ -10,7 +10,7 @@ This is a repo for "Self-training from Self-memory" (STSM). We test our self-tra
 * torch >= 2.0.1+cu117 (not sure with previous versions)
 
 # Training parameters
-
+We trained the models on "t5-base" (without prefixes), "facebook/bart-base", and "google/flan-t5-base".
 Here is the list of training parameters:
 * *mode*: train/test/generate
 * *epoch*: the number of epochs
