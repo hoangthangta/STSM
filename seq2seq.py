@@ -1,7 +1,12 @@
+import gc
+#torch.cuda.empty_cache()
+#gc.collect()
+
 import torch
 import os
 from torch import nn
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+device_cpu = torch.device('cpu')
 
 import re
 import sys
@@ -416,11 +421,13 @@ def train(model_name, model, tokenizer, train_data, val_data, num_train_epochs =
     output_dir = output_dir + '/' + dataset_name
     output_dir = output_dir.replace('//', '/')
 
-    fp16_value = False
+    fp16_value = False 
     if (torch.cuda.is_available() == True and 't5' not in model_name): fp16_value = True
+    #if (torch.cuda.is_available() == True): fp16_value = True
 
     training_args = Seq2SeqTrainingArguments(
-        gradient_accumulation_steps = 4,
+        gradient_accumulation_steps = 1,
+        #gradient_checkpointing=True,
         include_inputs_for_metrics = True,  # Transformers >= v4.2.0
         #weight_decay=0.1,
         #label_smoothing_factor=0.1,
@@ -441,13 +448,13 @@ def train(model_name, model, tokenizer, train_data, val_data, num_train_epochs =
         warmup_steps = warmup_steps,  
         #max_steps = 16,
         overwrite_output_dir = True,
-        save_total_limit = 1, # 2
+        save_total_limit = 2,
         save_strategy = 'epoch',
         num_train_epochs = num_train_epochs,
         fp16 = fp16_value,  # cuda only
         metric_for_best_model = eval_metric if train_type == 'd2t' else 'eval_osf_f1', 
         #metric_for_best_model = eval_metric, 
-        load_best_model_at_end = True, # will ignore save steps, saved after each evaluation
+        load_best_model_at_end = True, # will ignore save steps, save after each evaluation
         logging_dir=f"{output_dir}/logs",
         logging_strategy="epoch", 
     )
@@ -464,10 +471,12 @@ def train(model_name, model, tokenizer, train_data, val_data, num_train_epochs =
         compute_metrics = compute_metrics if train_type == 'd2t' else compute_metrics2
         #callbacks=[CustomCallback]
     )
-
+   
     trainer.train()
+    #trainer.evaluate()
     
-    trainer.save_model(output_dir)
+    #trainer.save_state()
+    #trainer.save_model(output_dir)
 
     # see inside the train object
     #import inspect
@@ -682,6 +691,9 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
                      decoding_type = 'greedy', num_beam = 4, batch_size = 4, max_len = 256, min_len = 4, \
                      source_column = 'source', source_prefix = '', dataset_name = 'wida2wl'):
 
+    
+    #model = model.to_bettertransformer() # speed up inference, https://huggingface.co/docs/transformers/perf_infer_gpu_one
+
     if (len(dataset) == 0): # load dataset if not given
         dataset = load_list_from_jsonl_file(input_file)
 
@@ -732,85 +744,14 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
                                        num_beams = 1, decoding_type = decoding_type)
             preds = [[x] for x in preds]
             pred_list += preds
+        
+        torch.cuda.empty_cache()
+        gc.collect()  
 
     pred_list = [[x.strip() for x in pred] for pred in pred_list]
-
-    dart_pred_list = []
-    e2e_ref_list, e2e_pred_list = [], []
-    for pred, item in zip(pred_list, dataset):
-        item['prediction'] = pred
-        #item['new_source'] = item['source'] + ' [SEP] ' + pred[0]
-
-        # spaCy
-        #doc = nlp(pred[0].lower())
-        #dart_pred_list.append(' '.join(token.text for token in doc if token.text.strip() != ''))
-
-        # NLTK
-        doc = wordpunct_tokenize(pred[0].lower())
-        dart_pred_list.append(' '.join(token for token in doc if token.strip() != ''))
-
-
-        e2e_pred_list.append(pred[0])
-        
-        #print('item: ', item)
-        
-        try:
-            for target in item['target']:
-                e2e_ref_list.append(target)
-            e2e_ref_list.append('')
-        except:
-            pass
-
-    output_file = input_file.replace('.json', '')
-    if (use_bad_words == True): output_file += '_masked'
-    output_file += '_pred.json'
     
-    write_list_to_jsonl_file(output_file, dataset, 'w')
-
-    if (dataset_name == 'dart'):
-
-        output_file = output_file.replace('.json', '') + '_dart.txt'
-        write_list_to_text_file(output_file, dart_pred_list, 'w')
-
-        # save to "dart_eval" folder
-        _, file_name = os.path.split(output_file)
-        output_file = 'dart_eval/example/' + file_name
-        if not os.path.exists(output_file): os.makedirs(output_file)
-        
-        write_list_to_text_file(output_file, dart_pred_list, 'w')
-
-        import subprocess
-        process = subprocess.Popen(['bash', 'run_eval_on_dart.sh'], stdout=subprocess.PIPE, cwd='dart_eval')
-        output, error = process.communicate()
-        print('evaluation output: ', output.decode())
-
-    if (dataset_name == 'e2e_nlg'):
-
-        output_file1 = output_file.replace('.json', '') + '_e2e_ref.txt'
-        write_list_to_text_file(output_file1, e2e_ref_list, file_access = 'w')
-
-        _, file_name1 = os.path.split(output_file1)
-        output_file1 = 'e2e_eval/example/' + file_name1
-        if not os.path.exists('e2e_eval/example/'): os.makedirs('e2e_eval/example/')
-        write_list_to_text_file(output_file1, e2e_ref_list, 'w')
-
-        output_file2 = output_file.replace('.json', '') + '_e2e_pred.txt'
-        write_list_to_text_file(output_file2, e2e_pred_list, file_access = 'w')
-
-        _, file_name2 = os.path.split(output_file2)
-        output_file2 = 'e2e_eval/example/' + file_name2
-        if not os.path.exists('e2e_eval/example/'): os.makedirs('e2e_eval/example/')
-        write_list_to_text_file(output_file2, e2e_pred_list, 'w')
-
-
-        import subprocess
-        process = subprocess.Popen(['python3', 'measure_scores.py', 'example/' + file_name1, 'example/' + file_name2], \
-                                   stdout=subprocess.PIPE, cwd='e2e_eval')
-        output, error = process.communicate()
-        print('evaluation output: ', output.decode())
-
-    #if (dataset_name == 'wida2wl'):
-
+    #model = model.reverse_bettertransformer()
+    
     return pred_list
 
 
@@ -818,17 +759,10 @@ def compute_metrics_detail(inputs, input_values, preds, labels, result_dict = {}
 
     """
         data2text
+            "dataset_name" is a global variable
     """
     
-    '''print('inputs: ', inputs[0])
-    print('preds: ', preds[0])
-    print('input_values: ', input_values[0])
-    print('labels: ', labels[0])
-    return'''
-
     can_tar_dict, can_source_dict = {}, {}
-
-    # "dataset_name" is a global variable
 
     if (mode == 'train'): 
         print('Calculating SPM...')
@@ -854,10 +788,10 @@ def compute_metrics_detail(inputs, input_values, preds, labels, result_dict = {}
     score = compute_spm_batch(preds, input_values)
     result_dict['spm'] = score['spm']
     
-    print('Calculating PARENT...')
+    '''print('Calculating PARENT...')
     parent_inputs, parent_labels, parent_preds = normalize_parent(inputs, labels, preds, dataset_name = dataset_name)
     precision, recall, f1 = parent(parent_preds, parent_labels, parent_inputs, avg_results=True, n_jobs=32)
-    result_dict['parent'] = f1
+    result_dict['parent'] = f1'''
 
     print('Calculating REP...')
     score = compute_repetition_batch(preds)
@@ -870,7 +804,7 @@ def compute_metrics_detail(inputs, input_values, preds, labels, result_dict = {}
     can_source_dict['bleu'] = score['bleu']
 
     print('Calculating METEOR...')
-    score = compute_meteor_batch(preds, labels)
+    score = compute_meteor_batch(preds, labels)    
     can_tar_dict['meteor'] = score['meteor']
     score = compute_meteor_batch(preds, inputs)
     can_source_dict['meteor'] = score['meteor']
@@ -962,8 +896,7 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
     dataset = load_list_from_jsonl_file(input_file)
 
     # add prefix
-    for item in dataset:
-        item['source'] = source_prefix + item['source']
+    for item in dataset: item['source'] = source_prefix + item['source']
 
     if (self_pred == True):
         for item in dataset:
@@ -977,50 +910,119 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
                                  input_file = input_file, decoding_type = decoding_type, num_beam = num_beam, \
                                  batch_size = batch_size, max_len = max_len, min_len = min_len)
 
-    inputs = []
-    best_preds = []
-    labels = []
-    input_values = []
-    
-    for i, pred, item in zip(range(0, len(dataset)), pred_list, dataset):
-        sys.stdout.write('Checking item: %d/%d \t Model: %s \r' % (i + 1, len(dataset), model_name))
-        #sys.stdout.flush()
+    # calculate metrics by datasets
+    dart_pred_list = []
+    e2e_ref_list, e2e_pred_list = [], []
+    for pred, item in zip(pred_list, dataset):
+        item['prediction'] = pred
+        #item['new_source'] = item['source'] + ' [SEP] ' + pred[0]
 
-        inp = item['source'] # source prefix?
+        doc = wordpunct_tokenize(pred[0].lower())
+        dart_pred_list.append(' '.join(token for token in doc if token.strip() != ''))
+        e2e_pred_list.append(pred[0])
+
+        try:
+            if (type(item['target']) != list):
+                e2e_ref_list.append(item['target'])
+                
+            else:
+                for target in item['target']: 
+                    e2e_ref_list.append(target)
+            e2e_ref_list.append('')
+        except: pass
+
+    output_file = input_file.replace('.json', '')
+    if (use_bad_words == True): output_file += '_masked'
+    output_file += '_pred.json'
+    
+    write_list_to_jsonl_file(output_file, dataset, 'w')
+
+    if (dataset_name == 'dart'):
+
+        output_file = output_file.replace('.json', '') + '_dart.txt'
+        write_list_to_text_file(output_file, dart_pred_list, 'w')
+
+        # save to "dart_eval" folder
+        _, file_name = os.path.split(output_file)
+        output_file = 'dart_eval/example/' + file_name
+        output_folder = 'dart_eval/example/'
+        if not os.path.exists(output_folder): os.makedirs(output_folder)
         
-        values = extract_values([inp], dataset_name = dataset_name)[0]
-        label = item['target']
+        write_list_to_text_file(output_file, dart_pred_list, 'w')
 
-        # get best pred by source
-        best_pred = ''
-        if (decoding_type != 'greedy' and decoding_type != 'multinomial'):
-            best_pred,_ = get_best_candidate_by_source(pred, inp, values)
-        else:
-            try: best_pred = pred[0]
-            except: pass
+        import subprocess
+        process = subprocess.Popen(['bash', 'run_eval_on_dart.sh'], stdout=subprocess.PIPE, cwd='dart_eval')
 
-        inputs.append(inp)
-        best_preds.append(best_pred)
-        labels.append(label)
-        input_values.append(values)
+        output, error = process.communicate()
+        print('evaluation output: ', output.decode())
+        
 
-    result_dict = {}
-    result_dict['checked_file'] = input_file
-    result_dict['model_name'] = model_name
-    result_dict['decoding_type'] = decoding_type
-    result_dict['use_force_words'] = use_force_words
-    result_dict['use_bad_words'] = use_bad_words
-    result_dict = compute_metrics_detail(inputs, input_values, best_preds, labels, result_dict, dataset_name = dataset_name, \
-                                         mode = 'test')
+
+    #if (dataset_name == 'e2e_nlg' or dataset_name == 'wida2wl'):
+    if (dataset_name == 'e2e_nlg'):
+
+        output_file1 = output_file.replace('.json', '') + '_e2e_ref.txt'
+        write_list_to_text_file(output_file1, e2e_ref_list, file_access = 'w')
+
+        _, file_name1 = os.path.split(output_file1)
+        output_file1 = 'e2e_eval/example/' + file_name1
+        if not os.path.exists('e2e_eval/example/'): os.makedirs('e2e_eval/example/')
+        write_list_to_text_file(output_file1, e2e_ref_list, 'w')
+
+        output_file2 = output_file.replace('.json', '') + '_e2e_pred.txt'
+        write_list_to_text_file(output_file2, e2e_pred_list, file_access = 'w')
+
+        _, file_name2 = os.path.split(output_file2)
+        output_file2 = 'e2e_eval/example/' + file_name2
+        if not os.path.exists('e2e_eval/example/'): os.makedirs('e2e_eval/example/')
+        write_list_to_text_file(output_file2, e2e_pred_list, 'w')
+
+        import subprocess
+        process = subprocess.Popen(['python', 'measure_scores.py', 'example/' + file_name1, 'example/' + file_name2], \
+                                   stdout=subprocess.PIPE, cwd='e2e_eval')
+        output, error = process.communicate()
+        print('evaluation output: ', output.decode())
+
+    if (dataset_name == 'wida2wl'):
     
-    output_dir += '/test_result.json'
-    output_dir = output_dir.replace('//','/')
-
-    write_single_dict_to_json_file(output_dir, result_dict, file_access = 'a')
-
-    # also write a prediction file
+        inputs = []
+        best_preds = []
+        labels = []
+        input_values = []
     
-    return result_dict
+        for i, pred, item in zip(range(0, len(dataset)), pred_list, dataset):
+            sys.stdout.write('Checking item: %d/%d \t Model: %s \r' % (i + 1, len(dataset), model_name))
+            #sys.stdout.flush()
+
+            inp = item['source'] # source prefix?
+            values = extract_values([inp], dataset_name = dataset_name)[0]
+           
+            label = item['target']
+
+            # get best pred by source
+            best_pred = ''
+            if (decoding_type != 'greedy' and decoding_type != 'multinomial'):
+                best_pred,_ = get_best_candidate_by_source(pred, inp, values)
+            else:
+                try: best_pred = pred[0]
+                except: pass
+
+            inputs.append(inp)
+            best_preds.append(best_pred)
+            labels.append(label)
+            input_values.append(values)
+        
+        result_dict = {}
+        result_dict['checked_file'] = input_file
+        result_dict['model_name'] = model_name
+        result_dict['decoding_type'] = decoding_type
+        result_dict['use_force_words'] = use_force_words
+        result_dict['use_bad_words'] = use_bad_words
+        result_dict = compute_metrics_detail(inputs, input_values, best_preds, labels, result_dict, dataset_name = dataset_name, \
+                                         mode = 'test')                             
+        result_file = output_file.replace('.json', '') + '_result.json'
+        write_single_dict_to_json_file(result_file, result_dict, file_access = 'w')
+        print('evaluation output: ', result_dict)
 
 
 def fuse_score(scores):
@@ -1106,7 +1108,7 @@ def optimize_target(source, target, dataset_name = 'wida2wl'):
 
     sent_list = get_sentence_list(target)           
     values = list(set(extract_values([source], dataset_name)[0]))
-    #print('values: ', values)
+    #print('values: ', values)fextract_values
     
     matched_values, matched_sents = [], []
 
@@ -1254,7 +1256,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             train_output1 = train(model_name, model, tokenizer, train_sub_data1, val_data1, num_train_epochs = train_epochs, \
                           batch_size = batch_size, output_dir = output_dir1, generation_max_len = max_len, train_type = 'd2t')
 
-            return
+            return # finish training
             
         
         for i in range(1, train_epochs + 1):
@@ -1290,6 +1292,10 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                 best_model1 = copy.deepcopy(model)
                 best_epoch = i
             model = copy.deepcopy(best_model1)
+            best_model1.to(device_cpu) 
+            
+            torch.cuda.empty_cache()
+            gc.collect()
             
         print('best_train_loss: ', best_train_loss1)
         print('best_epoch: ', str(best_epoch))
@@ -1302,11 +1308,8 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             try: shutil.rmtree(del_dir1)
             except: pass    
         return
-        
-    #####################
-    # SELF-TRAINING
-    #####################
-    
+            
+
     t2d_model = copy.deepcopy(model) # duplicate model
     t2d_model.to(device)
 
@@ -1367,6 +1370,9 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
 
     best_model1 = copy.deepcopy(model) 
     best_model2 = copy.deepcopy(t2d_model)
+    
+    torch.cuda.empty_cache()
+    gc.collect()
 
     d2t_current_list, t2d_current_list, new_d2t_list = [], [], []
     for i in range(1, self_train_epochs + 1):
@@ -1486,14 +1492,19 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             train_loss1 = self_train_loss1
             best_time1 = i
             best_model1 = copy.deepcopy(model)
-
+            best_model1.to(device_cpu) 
+            
         # keep the best model only
         for j in range(1, self_train_epochs + 1):
             if (j == best_time1): continue
             del_dir1 = output_dir1 + '/self_train_' + str(j) + '/'
             try: shutil.rmtree(del_dir1)
             except: pass
-            
+        
+        del model
+        del d2t_train_data
+        d2t_current_list = []
+        
         # train new t2d data with a single epoch
         if (self_train_t2d == True):
             t2d_model.train()
@@ -1506,7 +1517,8 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                 train_loss2 = self_train_loss2
                 best_time2 = i
                 best_model2 = copy.deepcopy(t2d_model)
-
+                best_model2.to(device_cpu) 
+ 
             # keep the best model only
             for j in range(1, self_train_epochs + 1):
                 if (j == best_time2): continue
@@ -1514,8 +1526,10 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                 try: shutil.rmtree(del_dir2)
                 except: pass
 
-        # reset training data
-        d2t_current_list = []
+        del t2d_model
+        del t2d_train_data
+        t2d_current_list = []
+
 
         print('***********************************************')
         print('results of data2text: ')        
@@ -1533,6 +1547,9 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                 print('best_metric (normal train in ' + str(train_epochs) + ' epoch(s)) :', train_output2.best_metric)
             print('best_train_loss: ', train_loss2)
         print('***********************************************')
+        
+        torch.cuda.empty_cache()
+        gc.collect()
 
 
 def create_bad_words(args):
@@ -1600,6 +1617,8 @@ def main(args):
         
         model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
         model.to(device)
+        
+        #model = model.to_bettertransformer() 
         
         # load data for d2t
         train_data1, val_data1 = load_data(tokenizer, args.batch_size, args.encoder_max_length, \
@@ -1693,8 +1712,8 @@ if __name__ == "__main__":
     parser.add_argument('--use_fuse_loss', type=int, default=0)
     parser.add_argument('--epoch', type=int, default=3)
     parser.add_argument('--self_epoch', type=int, default=3)
-    parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--test_batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--test_batch_size', type=int, default=8)
     parser.add_argument('--use_bad_words', type=int, default=0)
     parser.add_argument('--self_pred', type=int, default=0)
     parser.add_argument('--source_column', type=str, default='source')
@@ -1708,7 +1727,7 @@ if __name__ == "__main__":
     parser.add_argument('--merge_new_data', type=int, default=1)
     parser.add_argument('--self_train_t2d', type=int, default=1)
     parser.add_argument('--same_data', type=int, default=1)
-    parser.add_argument('--eval_metric', type=str, default='eval_parent')
+    parser.add_argument('--eval_metric', type=str, default='eval_meteor')
     parser.add_argument('--t2d_opt_metric', type=str, default='osf')
     parser.add_argument('--no_self_mem', type=int, default=0)
     parser.add_argument('--same_data_type', type=int, default=1)
@@ -1716,7 +1735,71 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
     
+#-------------------------------------#
+# TIPS
+#-------------------------------------#
+# Training models:
+#   * facebook/bart-base, facebook/bart-large
+#   * t5-small, t5-base, t5-large, google/t5-v1_1-small, google/t5-v1_1-base
+#
+# Train:
+# python seq2seq.py --mode train --epoch 3 --batch_size 4 --train_file "dataset/train_random.json" \
+#       --var_file "dataset/validation_random.json" --model_name "facebook/bart-base" --output_dir "output/random/" \
+#       --source_column "source" --target_column "target"
 
+# python seq2seq.py --mode self_train --epoch 3 --self_epoch 5 --batch_size 8 \
+#    --decoding_type "greedy" --train_file "dataset/train_random.json" \
+#    --var_file "dataset/validation_random.json" --model_name "facebook/bart-base" --output_dir "output/random/" \
+#    --source_column "source" --target_column "target" --load_trained 1 --d2t_model_path = "output/random/facebook_bart-base/data2text/checkpoint-141"
+#    --t2d_model_path = 'output/random/facebook_bart-base/text2data/checkpoint-94s'
+#
+
+''' python seq2seq.py --mode self_train --epoch 3 --self_epoch 5 --batch_size 8
+ --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy"
+ --train_file "dataset/temp/train_random.json"
+ --var_file "dataset/temp/validation_random.json" --model_name "facebook/bart-base"
+ --output_dir "output/random/" --source_column "source" --target_column "target"'''
+
+# python3 seq2seq.py --mode self_train --epoch 2 --self_epoch 1 --batch_size 4
+# --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy"
+# --train_file "dataset/temp/train_random.json" --var_file "dataset/temp/validation_random.json"
+# --model_name "facebook/bart-base" --output_dir "output/random/"
+
+# Test:
+# python seq2seq.py --mode test --test_file "dataset/test_random.json" \
+#       --model_name "facebook/bart-base" --output_dir "output/random/facebook_bart-base\checkpoint-xxxx"
+#
+# python seq2seq.py --mode test --test_file "dataset/validation_random.json" \
+#       --model_name "facebook/bart-base" --output_dir "output/random/facebook_bart-base\checkpoint-xxxx"
+# 
+# python seq2seq.py --mode generate --use_force_words 1 --test_file "dataset/temp/test_random.json" \
+#       --model_name "facebook/bart-base" \
+#       --output_dir "output/random/facebook_bart-base/checkpoint-xxxx" --decoding_type "beam"
+#
+
+# python seq2seq.py --mode test --test_file "dataset/wida2wl/test_random.json" --model_name "facebook/bart-base" --output_dir "output/wida2wl/facebook_bart-base/data2text/checkpoint-543" --decoding_type "greedy"
+ 
+#-------------------------------------#                  
+
+# Deploy an example ------------------#            
+
+'''tokenizer = AutoTokenizer.from_pretrained('facebook/bart-base', do_lower_case = False, add_prefix_space=True)
+model = AutoModelForSeq2SeqLM.from_pretrained('output/random/facebook_bart-base/checkpoint-1250')
+model.to(device)
+model.eval()
+
+global bad_words
+bad_words = tokenizer('XXX', add_special_tokens=False).input_ids
+bad_words = [ids for ids in bad_words if ids != -100]
+print('bad_words: ', bad_words)
+        
+texts = ['label : The Royal Sessions | genre : blues | performer : Paul Rodgers | instance of : album']
+print(generate_single(model, tokenizer, texts[0], max_length = 256, min_length = 4, num_beams = 1, \
+                      decoding_type = 'beam', force_text = ''))'''
+#print(generate_batch(model, tokenizer, texts, max_length = 256, min_length = 4, num_beams = 2, decoding_type = 'greedy'))
+#-------------------------------------#
+
+#-------------------------------------#
 
 
     

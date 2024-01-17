@@ -2,7 +2,7 @@ import re
 
 import datasets
 from datasets import load_metric
-#from evaluate import load as load_metric
+#from evaluate import load as load_metric2
 import sacrebleu
 
 bleu = load_metric('bleu')
@@ -381,7 +381,7 @@ def compute_meteor_batch(predictions, references):
     output = sum(output)/len(output)
     print(output)
 
-    # the same but memory error
+    # memory error
     #output = meteor.compute(predictions=[predictions], references=[references])
     #print(output)
     
