@@ -12,23 +12,23 @@ This is a repo for "Self-training from Self-memory" (STSM). We test our self-tra
 # Training parameters
 
 Here is the list of training parameters:
-* mode: train/test/generate
-* epoch: the number of epochs
-* batch_size: the size of batch
-* train_file, var_file, test_file: URLs of training, validation, and test files
-* decoding_type: greedy
-* output_dir: the location of trained models
-* dataset_name: the name of datasets (dart/e2e)
-* source_prefix: helpful for T5 models 
-* source_column, target_column: specify the fields of input and output in the training, validation, and test sets
-* train_percent: the ratio of self-train data (30%)
-* merge_new_data: merge self-memory with new data (1) or no merge self-memory with new data (0)
-* self_train_t2d: self-train the T2D model
-* same_data: train on the fixed data (1) or the random data (0)
-* eval_metric: evaluation metric
-* t2d_opt_metric: T2D optimization metric (osf = Overall Slot Filling, spm = simple phrase matching)
-* no_self_mem: use self-memory (1) or not (0)
-* same_data_type: use with no_self_mem = 1
+* *mode*: train/test/generate
+* *epoch*: the number of epochs
+* *batch_size*: the size of batch
+* *train_file, var_file, test_file*: URLs of training, validation, and test files
+* *decoding_type*: greedy
+* *output_dir*: the location of trained models
+* *dataset_name*: the name of datasets (dart/e2e)
+* *source_prefix*: helpful for T5 models 
+* *source_column, target_column*: specify the fields of input and output in the training, validation, and test sets
+* *train_percent*: the ratio of self-train data (30%)
+* *merge_new_data*: merge self-memory with new data (1) or no merge self-memory with new data (0)
+* *self_train_t2d*: self-train the T2D model
+* *same_data*: train on the fixed data (1) or the random data (0)
+* *eval_metric*: evaluation metric
+* *t2d_opt_metric*: T2D optimization metric (osf = Overall Slot Filling, spm = simple phrase matching)
+* *no_self_mem*: use self-memory (1) or not (0)
+* *same_data_type*: use with no_self_mem = 1
 
 # DART
 ### FULL TRAIN
