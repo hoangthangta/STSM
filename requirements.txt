@@ -188,7 +188,7 @@ news-fetch==0.2.8
 news-please==1.5.35
 newspaper3k==0.2.8
 ninja==1.11.1
-nltk==3.2.4
+nltk==3.8.1
 notebook==7.0.3
 notebook_shim==0.2.3
 numba==0.58.1
