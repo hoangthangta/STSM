@@ -10,9 +10,7 @@ This is a repo for "Self-training from Self-memory" (STSM). We test our self-tra
 * torch >= 2.0.1+cu117 (not sure with previous versions)
 
 # Training information
-We train our models on "t5-base" (without prefixes), "facebook/bart-base", and "google/flan-t5-base" on Windows, using Git Bash. Self-memory training methods only use "t5-base". We adapt the evaluation of DART and E2E NLG from two original packages:
-* https://github.com/Yale-LILY/dart/tree/master/evaluation
-* https://github.com/tuetschek/e2e-metrics
+We train our models on "t5-base" (without prefixes), "facebook/bart-base", and "google/flan-t5-base" on Windows, using Git Bash. All self-memory training methods only rely on "t5-base". We adapt the evaluation of DART and E2E NLG from two original packages (https://github.com/Yale-LILY/dart/tree/master/evaluation and https://github.com/tuetschek/e2e-metrics). Furthermore, we cut off the evaluation on several metrics due to errors. We also offer our evaluation version, which can be found in the file **metrics.py**.
 
 # Training parameters
 Here is the list of training parameters:
