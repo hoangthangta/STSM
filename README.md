@@ -121,7 +121,7 @@ python seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0
 accelerate launch seq2seq.py --mode self_train --epoch 3 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/e2e_nlg/train.json" --var_file "dataset/e2e_nlg/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "e2e_nlg" --source_prefix "" --same_data 0 --eval_metric "eval_meteor" --no_self_mem 1 
 
 ### EVALUATION (use "e2e_val")
-python seq2seq.py --mode test --test_file "dataset/e2e_nlg/test.json" --model_name "facebook/bart-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg"
+python seq2seq.py --mode test --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg"
 
 ### GENERATE
 python seq2seq.py --mode generate --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg"
