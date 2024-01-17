@@ -135,4 +135,4 @@ python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --us
 # Author Information
 If you have any questions, please open issues or contact:
 * tahoangthang@gmail.com
-* https://www.dammio.com
+* https://www.tahoangthang.com
