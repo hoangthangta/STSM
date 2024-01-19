@@ -23,7 +23,7 @@ Here is the list of training parameters:
 * *dataset_name*: the name of datasets (dart/e2e)
 * *source_prefix*: helpful for T5 models 
 * *source_column, target_column*: specify the fields of input and output in the training, validation, and test sets
-* *train_percent*: the ratio of self-train data (by default 30%).
+* *train_percent*: the ratio of self-train data (30%).
 * *merge_new_data*: merge self-memory with new data (1) or no merge self-memory with new data (0)
 * *self_train_t2d*: self-train the T2D model
 * *same_data*: train on the fixed data (1) or the random data (0)
