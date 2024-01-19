@@ -134,7 +134,7 @@ If you already have pre-trained D2T and T2D models, you can continue to self-tra
 python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 0 --self_train_t2d 1 --same_data 1 --eval_metric "eval_meteor" --t2d_opt_metric "osf" **--load_trained 1 --d2t_model_path "url_pretrained_model" --t2d_model_path  "url_pretrained_model"**
 
 # Minor errors
-The inference time in self-training is sometimes very slow, and we are working to find why.
+The inference time in self-training is sometimes very slow, and we are working to find why. We do not apply "accelerate" in self-training.
 
 # Author Information
 If you have any questions, please open issues or contact:
