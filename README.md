@@ -84,7 +84,7 @@ python seq2seq.py --mode test --test_file "dataset/dart/test.json" --model_name 
 python seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart" 
 
 ### GENERATE with MULTITHREAD ((speed up generation)
-python seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart"  --infer_max_workers 4 --infer_multi_thread 1
+python seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart"  **--infer_max_workers 4 --infer_multi_thread 1**
 
 # E2E NLG
 ### FULLTRAIN
@@ -135,7 +135,7 @@ python seq2seq.py --mode test --test_file "dataset/e2e_nlg/test.json" --model_na
 python seq2seq.py --mode generate --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg"
 
 ### GENERATE with MULTITHREAD (speed up generation)
-python seq2seq.py --mode generate --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg" --infer_max_workers 4 --infer_multi_thread 1
+python seq2seq.py --mode generate --test_file "dataset/e2e_nlg/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "e2e_nlg" **--infer_max_workers 4 --infer_multi_thread 1**
 
 # OTHER SELF-TRAINING
 If you already have pre-trained D2T and T2D models, you can continue to self-train them. For example, self-train on DART:
