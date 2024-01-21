@@ -689,12 +689,14 @@ def get_force_words(subset, n_words = 1): # not use...
     return force_texts
 
 
-def generate_single_batch(subset, texts, idx, model, tokenizer, use_force_words = False, \
+def generate_single_batch(subset, texts, idx, model_name, model, tokenizer, use_force_words = False, \
                             decoding_type = 'greedy', num_beam = 4, max_len = 256, min_len = 4):
     
     force_texts = []   
 
-    print('idx: ', idx)
+    #print('idx: ', idx)
+    sys.stdout.write('Infer batch: %d/%d \t Model: %s \r' % (idx, len(subset), model_name))
+    sys.stdout.flush()
     
     preds = []
     if (use_force_words == True): force_texts = get_force_words(subset)
@@ -740,7 +742,6 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
 
     
     #model = model.to_bettertransformer() # speed up inference, https://huggingface.co/docs/transformers/perf_infer_gpu_one
-    start = time.time()
 
     if (len(dataset) == 0): # load dataset if not given
         dataset = load_list_from_jsonl_file(input_file)
@@ -801,8 +802,6 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
         
             torch.cuda.empty_cache()
             gc.collect()
-        
-        
         pred_list = [[x.strip() for x in pred] for pred in pred_list]
     
 
@@ -824,18 +823,15 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
     
         # speed up inference
         with ThreadPoolExecutor(max_workers = infer_max_workers) as executor:
-            pred_list = executor.map(generate_single_batch, subset_list, texts_list, idx_list, [model]*len_list, [tokenizer]*len_list, \
-                                   [use_force_words]*len_list, [decoding_type]*len_list, [num_beam]*len_list, \
-                                   [max_len]*len_list, [min_len]*len_list, timeout = 600)
-    
-    
+            pred_list = executor.map(generate_single_batch, subset_list, texts_list, idx_list, [model_name]*len_list, [model]*len_list, \
+                                        [tokenizer]*len_list, [use_force_words]*len_list, [decoding_type]*len_list, [num_beam]*len_list, \
+                                        [max_len]*len_list, [min_len]*len_list, timeout = 600)
     
         pred_list = sorted(pred_list, key=lambda p: p['index']) 
         pred_list = [pred['value'][0] for pred in pred_list]
         pred_list = [[x.strip() for x in pred] for pred in pred_list]
         
-    end = time.time()
-    print("Inference time in seconds: ", (end - start))
+    
     return pred_list
 
 
@@ -1679,6 +1675,9 @@ def main(args):
     eval_metric = args.eval_metric
 
     if (args.mode == 'train'):
+    
+        start = time.time()
+    
         tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = True)
         bad_words = create_bad_words(args)
         
@@ -1696,9 +1695,13 @@ def main(args):
         train(args.model_name, model, tokenizer, train_data, val_data, num_train_epochs = args.epoch, \
               batch_size = args.batch_size, output_dir = saved_path, generation_max_len = args.decoder_max_length, \
               dataset_name = dataset_name)
+        
+        end = time.time()
+        print("Traning time in seconds: ", (end - start))
 
     elif (args.mode == 'self_train'):
 
+        start = time.time()
         tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = True)
         bad_words = create_bad_words(args)
         
@@ -1743,9 +1746,13 @@ def main(args):
                    self_train_t2d = self_train_t2d, same_data = same_data, t2d_opt_metric = args.t2d_opt_metric, \
                    no_self_mem = no_self_mem, same_data_type = same_data_type)
 
-
+        
+        end = time.time()
+        print("Self-traning time in seconds: ", (end - start))
+        
     elif (args.mode == 'test'):
 
+        start = time.time()
         tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = True)
         bad_words = create_bad_words(args)
         
@@ -1759,9 +1766,12 @@ def main(args):
                      batch_size = args.test_batch_size, decoding_type = args.decoding_type, output_dir = args.output_dir, \
                      self_pred = self_pred, dataset_name = dataset_name, source_prefix = source_prefix, \
                      max_len = args.decoder_max_length, min_len = args.decoder_min_length)
+        end = time.time()
+        print("Test time in seconds: ", (end - start))
 
     elif (args.mode == 'generate'):
 
+        start = time.time()
         tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = True)
         bad_words = create_bad_words(args)
         
@@ -1773,7 +1783,8 @@ def main(args):
                          batch_size = args.test_batch_size, input_file = args.test_file, decoding_type = args.decoding_type, \
                          source_prefix = source_prefix, max_len = args.decoder_max_length, min_len = args.decoder_min_length, \
                          dataset_name = dataset_name, infer_max_workers = args.infer_max_workers)
-
+        end = time.time()
+        print("Inference time in seconds: ", (end - start))
     else:
         print('Oooopppps! You do not set any working mode.')
 
