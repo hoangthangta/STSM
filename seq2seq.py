@@ -8,6 +8,8 @@ from torch import nn
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 device_cpu = torch.device('cpu')
 
+import time
+
 import re
 import sys
 import math
@@ -687,12 +689,58 @@ def get_force_words(subset, n_words = 1): # not use...
     return force_texts
 
 
+def generate_single_batch(subset, texts, idx, model, tokenizer, use_force_words = False, \
+                            decoding_type = 'greedy', num_beam = 4, max_len = 256, min_len = 4):
+    
+    force_texts = []   
+
+    print('idx: ', idx)
+    
+    preds = []
+    if (use_force_words == True): force_texts = get_force_words(subset)
+                
+    if (decoding_type == 'beam'):
+        sub_list = []
+        for j in range(2, num_beam + 1):
+            preds = generate_batch(model, tokenizer, texts, force_texts = force_texts, max_length = max_len, \
+                                   min_length = min_len, num_beams = j, decoding_type = decoding_type)
+            sub_list.append(preds)
+        sub_list = list(map(list, zip(*sub_list)))
+        sub_list = [list(set(x)) for x in sub_list]
+        preds = sub_list
+    elif (decoding_type == 'beam_multinomial'):
+        sub_list = []
+        for j in range(2, num_beam + 1):
+            preds = generate_batch(model, tokenizer, texts, force_texts = force_texts, max_length = max_len, \
+                                   min_length = min_len, num_beams = j, decoding_type = decoding_type)
+            sub_list.append(preds)
+        sub_list = list(map(list, zip(*sub_list)))
+        sub_list = [list(set(x)) for x in sub_list]
+        preds = sub_list
+    elif (decoding_type == 'multinomial'):
+        preds = generate_batch(model, tokenizer, texts, max_length = max_len, min_length = min_len, \
+                                   num_beams = 1, decoding_type = decoding_type)
+        preds = [[x] for x in preds]
+        
+    else: # greedy
+        preds = generate_batch(model, tokenizer, texts, max_length = max_len, min_length = min_len, \
+                                   num_beams = 1, decoding_type = decoding_type)
+        preds = [[x] for x in preds]
+        
+    
+    torch.cuda.empty_cache()
+    gc.collect() 
+    
+    return {'index':idx, 'value':preds}
+
+
 def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = False, input_file = 'dataset/test_random.json', \
                      decoding_type = 'greedy', num_beam = 4, batch_size = 4, max_len = 256, min_len = 4, \
-                     source_column = 'source', source_prefix = '', dataset_name = 'wida2wl'):
+                     source_column = 'source', source_prefix = '', dataset_name = 'wida2wl', infer_max_workers = 4):
 
     
     #model = model.to_bettertransformer() # speed up inference, https://huggingface.co/docs/transformers/perf_infer_gpu_one
+    start = time.time()
 
     if (len(dataset) == 0): # load dataset if not given
         dataset = load_list_from_jsonl_file(input_file)
@@ -701,57 +749,93 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
         item['source'] = source_prefix + item['source']
     
     pred_list = []
-    for i in range(0, len(dataset), batch_size):
-
-        n_batch = 0
-        if (len(dataset)%batch_size != 0): n_batch = len(dataset)//batch_size + 1
-        else: n_batch = len(dataset)//batch_size
-
-        sys.stdout.write('Infer batch: %d/%d \t Model: %s \r' % (i//batch_size + 1, n_batch, model_name))
-        #sys.stdout.flush()
-
-        subset = dataset[i:i + batch_size]
-        texts = [item[source_column] for item in subset]
+    subset_list = []
+    texts_list = []
     
-        force_texts = []    
-        if (use_force_words == True): force_texts = get_force_words(subset)
+    if (infer_multi_thread == False):
+        for i in range(0, len(dataset), batch_size):
+
+            n_batch = 0
+            if (len(dataset)%batch_size != 0): n_batch = len(dataset)//batch_size + 1
+            else: n_batch = len(dataset)//batch_size
+            
+            sys.stdout.write('Infer batch: %d/%d \t Model: %s \r' % (i//batch_size + 1, n_batch, model_name))
+            sys.stdout.flush()
+            
+            subset = dataset[i:i + batch_size]
+            texts = [item[source_column] for item in subset]
+
+            
+
+            force_texts = []    
+            if (use_force_words == True): force_texts = get_force_words(subset)
                 
-        if (decoding_type == 'beam'):
-            sub_list = []
-            for j in range(2, num_beam + 1):
-                preds = generate_batch(model, tokenizer, texts, force_texts = force_texts, max_length = max_len, \
+            if (decoding_type == 'beam'):
+                sub_list = []
+                for j in range(2, num_beam + 1):
+                    preds = generate_batch(model, tokenizer, texts, force_texts = force_texts, max_length = max_len, \
                                        min_length = min_len, num_beams = j, decoding_type = decoding_type)
-                sub_list.append(preds)
-            sub_list = list(map(list, zip(*sub_list)))
-            sub_list = [list(set(x)) for x in sub_list]
-            pred_list += sub_list
-        elif (decoding_type == 'beam_multinomial'):
-            sub_list = []
-            for j in range(2, num_beam + 1):
-                preds = generate_batch(model, tokenizer, texts, force_texts = force_texts, max_length = max_len, \
+                    sub_list.append(preds)
+                sub_list = list(map(list, zip(*sub_list)))
+                sub_list = [list(set(x)) for x in sub_list]
+                pred_list += sub_list
+            elif (decoding_type == 'beam_multinomial'):
+                sub_list = []
+                for j in range(2, num_beam + 1):
+                    preds = generate_batch(model, tokenizer, texts, force_texts = force_texts, max_length = max_len, \
                                        min_length = min_len, num_beams = j, decoding_type = decoding_type)
-                sub_list.append(preds)
-            sub_list = list(map(list, zip(*sub_list)))
-            sub_list = [list(set(x)) for x in sub_list]
-            pred_list += sub_list
-        elif (decoding_type == 'multinomial'):
-            preds = generate_batch(model, tokenizer, texts, max_length = max_len, min_length = min_len, \
+                    sub_list.append(preds)
+                sub_list = list(map(list, zip(*sub_list)))
+                sub_list = [list(set(x)) for x in sub_list]
+                pred_list += sub_list
+            elif (decoding_type == 'multinomial'):
+                preds = generate_batch(model, tokenizer, texts, max_length = max_len, min_length = min_len, \
                                        num_beams = 1, decoding_type = decoding_type)
-            preds = [[x] for x in preds]
-            pred_list += preds
-        else: # greedy
-            preds = generate_batch(model, tokenizer, texts, max_length = max_len, min_length = min_len, \
+                preds = [[x] for x in preds]
+                pred_list += preds
+            else: # greedy
+                preds = generate_batch(model, tokenizer, texts, max_length = max_len, min_length = min_len, \
                                        num_beams = 1, decoding_type = decoding_type)
-            preds = [[x] for x in preds]
-            pred_list += preds
+                preds = [[x] for x in preds]
+                pred_list += preds
         
-        torch.cuda.empty_cache()
-        gc.collect()  
+            torch.cuda.empty_cache()
+            gc.collect()
+        
+        
+        pred_list = [[x.strip() for x in pred] for pred in pred_list]
+    
 
-    pred_list = [[x.strip() for x in pred] for pred in pred_list]
+    else:
     
-    #model = model.reverse_bettertransformer()
+        for i in range(0, len(dataset), batch_size):
+
+            n_batch = 0
+            if (len(dataset)%batch_size != 0): n_batch = len(dataset)//batch_size + 1
+            else: n_batch = len(dataset)//batch_size
+            subset = dataset[i:i + batch_size]
+            texts = [item[source_column] for item in subset]
+        
+            subset_list.append(subset)
+            texts_list.append(texts)
     
+        idx_list = [i for i in range(0, len(subset_list))]
+        len_list = len(subset_list)
+    
+        # speed up inference
+        with ThreadPoolExecutor(max_workers = infer_max_workers) as executor:
+            pred_list = executor.map(generate_single_batch, subset_list, texts_list, idx_list, [model]*len_list, [tokenizer]*len_list, \
+                                   [use_force_words]*len_list, [decoding_type]*len_list, [num_beam]*len_list, \
+                                   [max_len]*len_list, [min_len]*len_list, timeout = 600)
+    
+    
+    
+        pred_list = sorted(pred_list, key=lambda p: p['index']) 
+        pred_list = [pred['value'][0] for pred in pred_list]
+        pred_list = [[x.strip() for x in pred] for pred in pred_list]
+        
+    end = time.time()
+    print("Inference time in seconds: ", (end - start))
     return pred_list
 
 
@@ -1581,6 +1665,9 @@ def main(args):
 
     global use_fuse_loss
     use_fuse_loss = (args.use_fuse_loss == 1)
+    
+    global infer_multi_thread
+    infer_multi_thread = (args.infer_multi_thread == 1)
  
     global dataset_name
     dataset_name = args.dataset_name
@@ -1685,7 +1772,7 @@ def main(args):
         generate_dataset([], args.model_name, model, tokenizer, use_force_words = use_force_words, \
                          batch_size = args.test_batch_size, input_file = args.test_file, decoding_type = args.decoding_type, \
                          source_prefix = source_prefix, max_len = args.decoder_max_length, min_len = args.decoder_min_length, \
-                         dataset_name = dataset_name)
+                         dataset_name = dataset_name, infer_max_workers = args.infer_max_workers)
 
     else:
         print('Oooopppps! You do not set any working mode.')
@@ -1731,9 +1818,13 @@ if __name__ == "__main__":
     parser.add_argument('--t2d_opt_metric', type=str, default='osf')
     parser.add_argument('--no_self_mem', type=int, default=0)
     parser.add_argument('--same_data_type', type=int, default=1)
-
+    parser.add_argument('--infer_multi_thread', type=int, default=1)
+    parser.add_argument('--infer_max_workers', type=int, default=4)
+    
     args = parser.parse_args()
     main(args)
+    
+
 
 
     
