@@ -1818,7 +1818,7 @@ if __name__ == "__main__":
     parser.add_argument('--t2d_opt_metric', type=str, default='osf')
     parser.add_argument('--no_self_mem', type=int, default=0)
     parser.add_argument('--same_data_type', type=int, default=1)
-    parser.add_argument('--infer_multi_thread', type=int, default=1)
+    parser.add_argument('--infer_multi_thread', type=int, default=0)
     parser.add_argument('--infer_max_workers', type=int, default=4)
     
     args = parser.parse_args()
