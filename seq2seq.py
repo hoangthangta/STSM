@@ -689,13 +689,13 @@ def get_force_words(subset, n_words = 1): # not use...
     return force_texts
 
 
-def generate_single_batch(subset, texts, idx, model_name, model, tokenizer, use_force_words = False, \
+def generate_single_batch(subset, texts, idx, total_batch, model_name, model, tokenizer, use_force_words = False, \
                             decoding_type = 'greedy', num_beam = 4, max_len = 256, min_len = 4):
     
     force_texts = []   
 
     #print('idx: ', idx)
-    sys.stdout.write('Infer batch: %d/%d \t Model: %s \r' % (idx, len(subset), model_name))
+    sys.stdout.write('Infer batch: %d/%d \t Model: %s \r' % (idx, total_batch, model_name))
     sys.stdout.flush()
     
     preds = []
@@ -729,7 +729,6 @@ def generate_single_batch(subset, texts, idx, model_name, model, tokenizer, use_
                                    num_beams = 1, decoding_type = decoding_type)
         preds = [[x] for x in preds]
         
-    
     torch.cuda.empty_cache()
     gc.collect() 
     
@@ -742,7 +741,6 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
 
     
     #model = model.to_bettertransformer() # speed up inference, https://huggingface.co/docs/transformers/perf_infer_gpu_one
-
     if (len(dataset) == 0): # load dataset if not given
         dataset = load_list_from_jsonl_file(input_file)
 
@@ -765,8 +763,6 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
             
             subset = dataset[i:i + batch_size]
             texts = [item[source_column] for item in subset]
-
-            
 
             force_texts = []    
             if (use_force_words == True): force_texts = get_force_words(subset)
@@ -823,14 +819,16 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
     
         # speed up inference
         with ThreadPoolExecutor(max_workers = infer_max_workers) as executor:
-            pred_list = executor.map(generate_single_batch, subset_list, texts_list, idx_list, [model_name]*len_list, [model]*len_list, \
-                                        [tokenizer]*len_list, [use_force_words]*len_list, [decoding_type]*len_list, [num_beam]*len_list, \
-                                        [max_len]*len_list, [min_len]*len_list, timeout = 600)
+            pred_list = executor.map(generate_single_batch, subset_list, texts_list, idx_list, [len_list]*len_list,  \
+                            [model_name]*len_list,[model]*len_list, [tokenizer]*len_list, [use_force_words]*len_list, \
+                            [decoding_type]*len_list, [num_beam]*len_list, [max_len]*len_list, [min_len]*len_list, timeout = 600)
     
         pred_list = sorted(pred_list, key=lambda p: p['index']) 
-        pred_list = [pred['value'][0] for pred in pred_list]
+        pred_list = [pred['value'] for pred in pred_list]
+        pred_list = sum(pred_list, [])  
         pred_list = [[x.strip() for x in pred] for pred in pred_list]
         
+    print('pred_list: ', pred_list[0], len(pred_list))
     
     return pred_list
 
