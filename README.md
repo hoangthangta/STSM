@@ -31,8 +31,8 @@ Here is the list of training parameters:
 * *t2d_opt_metric*: T2D optimization metric (osf = Overall Slot Filling, spm = simple phrase matching)
 * *no_self_mem*: use self-memory (1) or not (0)
 * *same_data_type*: use with no_self_mem = 1
-* *infer_multi_thread*: use multi-threading in the inference time, (0 = No (default), 1 = Yes) # memmory error may happen
-* *infer_max_workers*: use with *infer_multi_thread = 1* in the inference time, (default is 4)
+* *infer_multi_thread*: use multi-threading in the inference time, (0 = No (default), 1 = Yes) # memory error may happen
+* *infer_max_workers*: use with *infer_multi_thread = 1* in the inference time, (default is 4) # memory error may happen
 
 
 # DART
