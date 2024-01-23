@@ -1,8 +1,8 @@
 # Introduction
 
-This is a repo for our paper ["Self-training from Self-memory in Data-to-text Generation" ](https://arxiv.org/abs/2401.10567)). We test our self-training model over two datasets, DART and E2E NLG. 
+This is a repo for our paper ["Self-training from Self-memory in Data-to-text Generation"](https://arxiv.org/abs/2401.10567). We test our self-training models over two datasets, DART and E2E NLG. 
 
-If you want to check examples of other NLG datasets, see: https://quest.ms.mff.cuni.cz/nlg/tabgenie.
+If you want to check examples of other NLG datasets, see https://quest.ms.mff.cuni.cz/nlg/tabgenie.
 
 ![Alt text](model.png?raw=true "STSM model")
 
@@ -33,8 +33,8 @@ Here is the list of training parameters:
 * *t2d_opt_metric*: T2D optimization metric (osf = Overall Slot Filling, spm = simple phrase matching)
 * *no_self_mem*: use self-memory (1) or not (0)
 * *same_data_type*: use with no_self_mem = 1
-* *infer_multi_thread*: use multi-threading in the inference time, (0 = No (default), 1 = Yes) # memory error may happen
-* *infer_max_workers*: use with *infer_multi_thread = 1* in the inference time, (default is 4) # memory error may happen
+* *infer_multi_thread*: use multi-threading in the inference time, (0 = No (default), 1 = Yes) # memory error may happen, not so much effective
+* *infer_max_workers*: use with *infer_multi_thread = 1* in the inference time, (default is 4) # memory error may happen, not so much effective
 
 
 # DART
@@ -145,7 +145,9 @@ If you already have pre-trained D2T and T2D models, you can continue to self-tra
 python seq2seq.py --mode self_train --epoch 1 --self_epoch 2 --batch_size 4 --use_force_words 0 --use_fuse_loss 0 --decoding_type "greedy" --train_file "dataset/dart/train.json" --var_file "dataset/dart/val.json" --model_name "t5-base" --output_dir "output/" --source_column "source" --target_column "target" --train_percent 30 --dataset_name "dart" --source_prefix "" --merge_new_data 0 --self_train_t2d 1 --same_data 1 --eval_metric "eval_meteor" --t2d_opt_metric "osf" **--load_trained 1 --d2t_model_path "url_pretrained_model" --t2d_model_path  "url_pretrained_model"**
 
 # Minor errors
-The inference time in self-training is sometimes very slow, and we are working to find out why. We do not apply "accelerate" in self-training.
+The inference time in self-training is sometimes very slow, and we are working to search for speed-up methods.
+
+We do not apply "accelerate" in self-training.
 
 # Author Information
 If you have any questions, please open issues or contact:
