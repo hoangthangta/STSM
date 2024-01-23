@@ -1,6 +1,8 @@
 # Introduction
 
-This is a repo for our paper "Self-training from Self-memory in Data-to-text Generation". We test our self-training model over two datasets, DART and E2E NLG. To check examples of NLG datasets, we suggest you to use: https://quest.ms.mff.cuni.cz/nlg/tabgenie.
+This is a repo for our paper ["Self-training from Self-memory in Data-to-text Generation" ](https://arxiv.org/abs/2401.10567)). We test our self-training model over two datasets, DART and E2E NLG. 
+
+If you want to check examples of other NLG datasets, see: https://quest.ms.mff.cuni.cz/nlg/tabgenie.
 
 ![Alt text](model.png?raw=true "STSM model")
 
