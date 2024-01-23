@@ -85,7 +85,7 @@ python seq2seq.py --mode test --test_file "dataset/dart/test.json" --model_name 
 ### GENERATE
 python seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart" 
 
-### GENERATE with MULTITHREAD ((speed up generation)
+### GENERATE with MULTITHREAD (speed up generation)
 python seq2seq.py --mode generate --test_file "dataset/dart/test.json" --model_name "t5-base" --output_dir "output/xxx" --source_prefix "" --decoding_type "greedy" --test_batch_size 16 --dataset_name "dart"  **--infer_max_workers 4 --infer_multi_thread 1**
 
 # E2E NLG
