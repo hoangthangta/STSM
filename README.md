@@ -24,7 +24,7 @@ Here is the list of training parameters:
 * *decoding_type*: greedy
 * *output_dir*: the location of trained models
 * *dataset_name*: the name of datasets (dart/e2e)
-* *source_prefix*: helpful for T5 models 
+* *source_prefix*: helpful for T5 models. We **DO NOT use prefixes** such as "summarize: " in the experiments
 * *source_column, target_column*: specify the fields of input and output in the training, validation, and test sets
 * *train_percent*: the ratio of self-train data (30%).
 * *merge_new_data*: merge self-memory with new data (1) or no merge self-memory with new data (0)
