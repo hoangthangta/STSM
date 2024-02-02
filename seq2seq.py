@@ -1225,28 +1225,27 @@ def add_target(current_list, source, target, pred, source_column = 'source', tar
     return current_list
         
 
-def create_train_set(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_list = [], \
+def create_train_set(d2t_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_list = [], \
                      source_column = 'source', target_column = 'target', dataset_name = 'wida2wl'):
 
-    for d2t_pred, t2d_pred, opt_d2t_pred, opt_t2d_pred, item in zip(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, \
+    for d2t_pred, opt_d2t_pred, opt_t2d_pred, item in zip(d2t_pred_list, opt_d2t_pred_list, \
                                                          opt_t2d_pred_list, train_list):
         d2t_pred = d2t_pred[0]
         source = item[source_column]
         target = item[target_column]
         d2t_values = extract_values([source], dataset_name = dataset_name)[0]
 
-        t2d_pred = t2d_pred[0]
-        t2d_values = extract_values([t2d_pred], dataset_name = dataset_name)[0]
+        #t2d_pred = t2d_pred[0]
+        #t2d_values = extract_values([t2d_pred], dataset_name = dataset_name)[0]
 
         opt_d2t_pred = opt_d2t_pred[0]
         opt_t2d_pred = opt_t2d_pred[0]
         opt_t2d_values = extract_values([opt_d2t_pred], dataset_name = dataset_name)[0]
 
-        if (opt_d2t_pred == d2t_pred): opt_d2t_pred = d2t_pred
+        #if (opt_d2t_pred == d2t_pred): opt_d2t_pred = d2t_pred
         
         
         # check conditions for optimized targets
-        
         # value order (very rare cases)
         '''reg_str = '\s.*\s'.join(x for x in d2t_values)
         order = re.search(reg_str, opt_d2t_pred)
@@ -1515,7 +1514,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         print('opt_t2d_pred_list: ', opt_t2d_pred_list[0], len(opt_t2d_pred_list))
 
         # create new d2t train set
-        d2t_current_list = create_train_set(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, \
+        d2t_current_list = create_train_set(d2t_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, \
                                             d2t_train_list1, d2t_current_list, source_column = source_column, \
                                             target_column = target_column, dataset_name = dataset_name)
         
