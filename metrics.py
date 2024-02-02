@@ -77,6 +77,51 @@ def compute_osf_single(pred, target):
     re = len(items)/len(set(target_list))
 
     return {'osf_f1': (2*pre*re)/(pre + re), 'osf_precision': pre, 'osf_recall': re}
+
+def compute_sf_batch(preds, targets):
+    """
+        "Overall Slot Filling" in https://arxiv.org/pdf/1809.01797v2.pdf
+    """
+
+    f1 = []
+    re = []
+    pre = []
+    for pred, target in zip(preds, targets):
+        f1.append(compute_sf_single(pred, target)['sf_f1'])
+        pre.append(compute_sf_single(pred, target)['sf_precision'])
+        re.append(compute_sf_single(pred, target)['sf_recall'])
+        
+    f1 = sum(f1)/len(f1)
+    re = sum(re)/len(re)
+    pre = sum(pre)/len(pre)
+    
+    return {'sf_f1': f1, 'sf_precision': pre, 'sf_recall': re}
+    
+def compute_sf_single(pred, target):
+    """
+        "Slot Filling" 
+    """
+
+    # split to pairs/triples
+    pred_list, target_list = [], []
+    
+    import re
+    pred_list = re.split('\| |> |:', pred)
+    pred_list = [x.strip() for x in pred_list]
+
+    target_list = re.split('\| |> |:', target)
+    target_list = [x.strip() for x in target_list]
+    
+    if (len(pred_list) == 0 or len(target_list) == 0): return {'sf_f1': 0, 'sf_precision': 0, 'sf_recall': 0}
+
+    # get overlap items
+    items = set(pred_list).intersection(set(target_list))
+    if (len(items) == 0): return {'sf_f1': 0, 'sf_precision': 0, 'sf_recall': 0}
+    
+    pre = len(items)/len(set(pred_list))
+    re = len(items)/len(set(target_list))
+
+    return {'sf_f1': (2*pre*re)/(pre + re), 'sf_precision': pre, 'sf_recall': re}
     
     
 def compute_repetition_batch(sentences):
@@ -192,6 +237,7 @@ def compute_spm_single(target, values, lib = 'spacy'):
 
     return result_dict
 
+
 def compute_rouge_batch(predictions, references):
 
     """
@@ -215,11 +261,11 @@ def compute_rouge_batch(predictions, references):
     i =  0
     for pre, ref in zip(predictions, references):
         output = compute_rouge_single(pre, ref)
-        print('pre: ', pre)
-        print('ref: ', ref)
-        print(i, len(predictions))
+        #print('pre: ', pre)
+        #print('ref: ', ref)
+        #print(i, len(predictions))
         i = i + 1
-        print('----------------')
+        #print('----------------')
         r1_pre.append(output['rouge1_precision'])
         r2_pre.append(output['rouge2_precision'])
         rL_pre.append(output['rougeL_precision'])

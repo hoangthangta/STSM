@@ -54,7 +54,7 @@ from parent import parent # install https://github.com/KaijuML/parent
 
 #from transformers import Trainer
 from metrics import *
-from read_write_file import *
+from file_io import *
 
 vocab_dict = {} # use for another works
 #try: vocab_dict = load_list_from_json_file('dataset/vocab.json')
@@ -455,7 +455,6 @@ def train(model_name, model, tokenizer, train_data, val_data, num_train_epochs =
         num_train_epochs = num_train_epochs,
         fp16 = fp16_value,  # cuda only
         metric_for_best_model = eval_metric if train_type == 'd2t' else 'eval_osf_f1', 
-        #metric_for_best_model = eval_metric, 
         load_best_model_at_end = True, # will ignore save steps, save after each evaluation
         logging_dir=f"{output_dir}/logs",
         logging_strategy="epoch", 
@@ -742,7 +741,7 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
     
     #model = model.to_bettertransformer() # speed up inference, https://huggingface.co/docs/transformers/perf_infer_gpu_one
     if (len(dataset) == 0): # load dataset if not given
-        dataset = load_list_from_jsonl_file(input_file)
+        dataset = read_list_from_jsonl_file(input_file)
 
     for item in dataset:
         item['source'] = source_prefix + item['source']
@@ -927,6 +926,11 @@ def compute_metrics_detail2(inputs, preds, preds_values, labels, result_dict = {
         result_dict['osf_f1'] = score['osf_f1']
         result_dict['osf_recall'] = score['osf_recall']
         
+        score = compute_sf_batch(preds, labels)
+        result_dict['sf_precision'] = score['sf_precision']
+        result_dict['sf_f1'] = score['sf_f1']
+        result_dict['sf_recall'] = score['sf_recall']
+        
         return result_dict
 
     print('Calculating SPM...')
@@ -971,7 +975,7 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
                  batch_size = 8, decoding_type = 'greedy', num_beam = 4, output_dir='output/', self_pred = False, \
                  dataset_name = 'wida2wl', source_prefix = '', max_len = 256, min_len = 4):
 
-    dataset = load_list_from_jsonl_file(input_file)
+    dataset = read_list_from_jsonl_file(input_file)
 
     # add prefix
     for item in dataset: item['source'] = source_prefix + item['source']
@@ -1222,7 +1226,7 @@ def add_target(current_list, source, target, pred, source_column = 'source', tar
         
 
 def create_train_set(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_list = [], \
-                     source_column = 'source', target_column = 'target', dataset_name = 'wida2wl', t2d_opt_metric = 'osf'):
+                     source_column = 'source', target_column = 'target', dataset_name = 'wida2wl'):
 
     for d2t_pred, t2d_pred, opt_d2t_pred, opt_t2d_pred, item in zip(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, \
                                                          opt_t2d_pred_list, train_list):
@@ -1238,28 +1242,36 @@ def create_train_set(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, opt_t2d_pr
         opt_t2d_pred = opt_t2d_pred[0]
         opt_t2d_values = extract_values([opt_d2t_pred], dataset_name = dataset_name)[0]
 
-        if (opt_d2t_pred == d2t_pred):
-            if (len(d2t_pred) < len(target) and compute_spm_single(d2t_pred, d2t_values)['spm'] == 1):
-                if (t2d_opt_metric == 'osf'):
-                    if (compute_osf_single(t2d_pred, source)['osf_precision'] == 1):
-                        current_list = add_target(current_list, source, target, d2t_pred, \
-                                                  source_column = source_column, target_column = target_column)
-                else:
-                    if (compute_spm_single(target, t2d_values)['spm'] == 1):
-                        current_list = add_target(current_list, source, target, d2t_pred, \
-                                                  source_column = source_column, target_column = target_column)
-        else: # use optimized pred 
-            if (len(opt_d2t_pred) < len(target) and compute_spm_single(opt_d2t_pred, d2t_values)['spm'] == 1):
-
-                if (t2d_opt_metric == 'osf'):
-                    if (compute_osf_single(opt_t2d_pred, source)['osf_precision'] == 1):
-                        current_list = add_target(current_list, source, target, opt_d2t_pred, \
-                                                  source_column = source_column, target_column = target_column)
-                else:
-                    if (compute_spm_single(target, opt_t2d_values)['spm'] == 1):
-                        current_list = add_target(current_list, source, target, opt_d2t_pred, \
-                                                  source_column = source_column, target_column = target_column)
-
+        if (opt_d2t_pred == d2t_pred): opt_d2t_pred = d2t_pred
+        
+        
+        # check conditions for optimized targets
+        
+        # value order (very rare cases)
+        '''reg_str = '\s.*\s'.join(x for x in d2t_values)
+        order = re.search(reg_str, opt_d2t_pred)
+        if order: order = True
+        else: order = False'''
+ 
+        con1 = False
+        if (len(opt_d2t_pred) < len(target) and compute_spm_single(opt_d2t_pred, d2t_values)['spm'] == 1):
+            con1 = True
+        
+        con2 = False
+        if (t2d_opt_metric == 'osf' and compute_osf_single(opt_t2d_pred, source)['osf_precision'] == 1):
+            con2 = True
+                   
+        if (t2d_opt_metric == 'spm' and compute_spm_single(target, opt_t2d_values)['spm'] == 1):
+            con2 = True
+            
+        if (t2d_opt_metric == 'sf' and compute_sf_single(opt_t2d_pred, source)['sf_precision'] == 1):
+            con2 = True
+        
+        if (con1 == True and con2 == True):
+            current_list = add_target(current_list, source, target, opt_d2t_pred, \
+                                        source_column = source_column, target_column = target_column)
+                                              
+        
     for item in current_list:
         print(item)
         print('---------------')
@@ -1285,7 +1297,7 @@ def save_optimized_data(d2t_list, dataset_name):
     if not os.path.exists(output):
         os.makedirs(output)
     else:
-        new_d2t_list = load_list_from_jsonl_file(output_file)
+        new_d2t_list = read_list_from_jsonl_file(output_file)
 
     for item in d2t_list:
         try:
@@ -1306,7 +1318,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                decoding_type = 'greedy', num_beam = 4, batch_size = 4, test_batch_size = 16, max_len = 256, \
                min_len = 4, train_epochs = 1, self_train_epochs = 3, output_dir = 'output/', source_column = 'source', \
                target_column = 'target', load_trained = False, d2t_model_path = '', t2d_model_path = '', dataset_name = 'wida2wl', \
-               train_percent = 10, merge_new_data = True, self_train_t2d = True, same_data = True, t2d_opt_metric = 'osf', \
+               train_percent = 10, merge_new_data = True, self_train_t2d = True, same_data = True, \
                no_self_mem = False, same_data_type = 1):
 
     """
@@ -1334,7 +1346,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             train_output1 = train(model_name, model, tokenizer, train_sub_data1, val_data1, num_train_epochs = train_epochs, \
                           batch_size = batch_size, output_dir = output_dir1, generation_max_len = max_len, train_type = 'd2t')
 
-            return # finish training
+            return # finish "no self-mem 2"
             
         
         for i in range(1, train_epochs + 1):
@@ -1347,7 +1359,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                     train_sub_data1 = train_data1['train'].train_test_split(test_size=train_percent/100, seed=seed) 
                     train_sub_data1['train'] = train_sub_data1['test']
                     train_sub_data1.pop('test')
-                    #print('ok man!')
+                    
                     #return
                 else: # same_data_type = 1
                     n_examples =  int((train_percent/100)*len(train_data1['train']))
@@ -1505,8 +1517,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         # create new d2t train set
         d2t_current_list = create_train_set(d2t_pred_list, t2d_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, \
                                             d2t_train_list1, d2t_current_list, source_column = source_column, \
-                                            target_column = target_column, dataset_name = dataset_name, \
-                                            t2d_opt_metric = t2d_opt_metric)
+                                            target_column = target_column, dataset_name = dataset_name)
         
         # end training conditions
         if (len(d2t_current_list) == 0):
@@ -1671,6 +1682,9 @@ def main(args):
 
     global eval_metric
     eval_metric = args.eval_metric
+    
+    global t2d_opt_metric
+    t2d_opt_metric = args.t2d_opt_metric
 
     if (args.mode == 'train'):
     
@@ -1741,7 +1755,7 @@ def main(args):
                    source_column = args.source_column, target_column = args.target_column, load_trained = load_trained, \
                    d2t_model_path = args.d2t_model_path, t2d_model_path = args.t2d_model_path, \
                    dataset_name = dataset_name, train_percent = args.train_percent, merge_new_data = merge_new_data, \
-                   self_train_t2d = self_train_t2d, same_data = same_data, t2d_opt_metric = args.t2d_opt_metric, \
+                   self_train_t2d = self_train_t2d, same_data = same_data, \
                    no_self_mem = no_self_mem, same_data_type = same_data_type)
 
         
