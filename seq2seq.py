@@ -8,6 +8,10 @@ from torch import nn
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 device_cpu = torch.device('cpu')
 
+'''torch.cuda.set_per_process_memory_fraction(0.5, 0)
+torch.cuda.empty_cache()
+total_memory = torch.cuda.get_device_properties(0).total_memory'''
+
 import time
 
 import re
@@ -17,7 +21,7 @@ import random
 import numpy as np
 import statistics
 
-import shutil # delete folder
+import shutil
 
 import pandas as pd
 import argparse
@@ -416,7 +420,7 @@ def train(model_name, model, tokenizer, train_data, val_data, num_train_epochs =
           generation_max_len = 256, train_type = 'd2t', dataset_name = ''):
     
     save_steps = len(train_data['train'])//batch_size
-    #print('save_steps: ', save_steps)
+    print('save_steps: ', save_steps)
     #save_steps = len(train_data['train'])
     warmup_steps = save_steps//10 # 10% warmup
     
@@ -744,7 +748,8 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
         dataset = read_list_from_jsonl_file(input_file)
 
     for item in dataset:
-        item['source'] = source_prefix + item['source']
+        #item['source'] = source_prefix + item['source']
+        item[source_column] = source_prefix + item[source_column]
     
     pred_list = []
     subset_list = []
@@ -971,19 +976,28 @@ def compute_metrics_detail2(inputs, preds, preds_values, labels, result_dict = {
 
     return result_dict
 
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text
+    
 def test_dataset(model_name, model, tokenizer, use_force_words = False, input_file = 'dataset/test_random.json', \
                  batch_size = 8, decoding_type = 'greedy', num_beam = 4, output_dir='output/', self_pred = False, \
-                 dataset_name = 'wida2wl', source_prefix = '', max_len = 256, min_len = 4):
+                 dataset_name = 'wida2wl', source_prefix = '', max_len = 256, min_len = 4, source_column = 'source', \
+                 target_column = 'target'):
 
     dataset = read_list_from_jsonl_file(input_file)
 
     # add prefix
-    for item in dataset: item['source'] = source_prefix + item['source']
+    for item in dataset: 
+        #item['source'] = source_prefix + item['source']
+        item[source_column] = source_prefix + item[source_column]
 
     if (self_pred == True):
         for item in dataset:
             try:
-                item['source'] = item['source'].split(' [SEP] ')[0] + ' [SEP] ' + item['prediction'][0]
+                #item['source'] = item['source'].split(' [SEP] ')[0] + ' [SEP] ' + item['prediction'][0]
+                item[source_column] = item[source_column].split(' [SEP] ')[0] + ' [SEP] ' + item['prediction'][0]
             except:
                 print('Warning: The dataset contains no "prediction"!')
                 pass
@@ -997,18 +1011,18 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
     e2e_ref_list, e2e_pred_list = [], []
     for pred, item in zip(pred_list, dataset):
         item['prediction'] = pred
-        #item['new_source'] = item['source'] + ' [SEP] ' + pred[0]
+        #item['new_source'] = item[source_column] + ' [SEP] ' + pred[0]
 
         doc = wordpunct_tokenize(pred[0].lower())
         dart_pred_list.append(' '.join(token for token in doc if token.strip() != ''))
         e2e_pred_list.append(pred[0])
 
         try:
-            if (type(item['target']) != list):
-                e2e_ref_list.append(item['target'])
+            if (type(item[target_column]) != list):
+                e2e_ref_list.append(item[target_column])
                 
             else:
-                for target in item['target']: 
+                for target in item[target_column]: 
                     e2e_ref_list.append(target)
             e2e_ref_list.append('')
         except: pass
@@ -1039,8 +1053,6 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
         print('evaluation output: ', output.decode())
         
 
-
-    #if (dataset_name == 'e2e_nlg' or dataset_name == 'wida2wl'):
     if (dataset_name == 'e2e_nlg'):
 
         output_file1 = output_file.replace('.json', '') + '_e2e_ref.txt'
@@ -1076,10 +1088,12 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
             sys.stdout.write('Checking item: %d/%d \t Model: %s \r' % (i + 1, len(dataset), model_name))
             #sys.stdout.flush()
 
-            inp = item['source'] # source prefix?
+            #inp = item['source'] # source prefix?
+            inp = remove_prefix(item[source_column], source_prefix)
+            
             values = extract_values([inp], dataset_name = dataset_name)[0]
            
-            label = item['target']
+            label = item[target_column]
 
             # get best pred by source
             best_pred = ''
@@ -1100,8 +1114,8 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
         result_dict['decoding_type'] = decoding_type
         result_dict['use_force_words'] = use_force_words
         result_dict['use_bad_words'] = use_bad_words
-        result_dict = compute_metrics_detail(inputs, input_values, best_preds, labels, result_dict, dataset_name = dataset_name, \
-                                         mode = 'test')                             
+        result_dict = compute_metrics_detail(inputs, input_values, best_preds, labels, result_dict, \
+                        dataset_name = dataset_name, mode = 'test')                             
         result_file = output_file.replace('.json', '') + '_result.json'
         write_single_dict_to_json_file(result_file, result_dict, file_access = 'w')
         print('evaluation output: ', result_dict)
@@ -1210,7 +1224,7 @@ def add_target(current_list, source, target, pred, source_column = 'source', tar
     flag = False
 
     for item in current_list:
-        if (item['source'] == source):
+        if (item[source_column] == source):
             flag = True
             if (len(pred) < len(item[target_column])):
                 item[target_column] = pred
@@ -1225,14 +1239,16 @@ def add_target(current_list, source, target, pred, source_column = 'source', tar
     return current_list
         
 
-def create_train_set(d2t_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_list = [], \
+def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_list = [], \
                      source_column = 'source', target_column = 'target', dataset_name = 'wida2wl'):
 
-    for d2t_pred, opt_d2t_pred, opt_t2d_pred, item in zip(d2t_pred_list, opt_d2t_pred_list, \
+    for opt_d2t_pred, opt_t2d_pred, item in zip(opt_d2t_pred_list, \
                                                          opt_t2d_pred_list, train_list):
-        d2t_pred = d2t_pred[0]
+        
         source = item[source_column]
         target = item[target_column]
+        
+        #d2t_pred = d2t_pred[0]
         d2t_values = extract_values([source], dataset_name = dataset_name)[0]
 
         #t2d_pred = t2d_pred[0]
@@ -1243,7 +1259,6 @@ def create_train_set(d2t_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, train_
         opt_t2d_values = extract_values([opt_d2t_pred], dataset_name = dataset_name)[0]
 
         #if (opt_d2t_pred == d2t_pred): opt_d2t_pred = d2t_pred
-        
         
         # check conditions for optimized targets
         # value order (very rare cases)
@@ -1285,7 +1300,7 @@ def create_train_set(d2t_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, train_
     return current_list
 
 
-def save_optimized_data(d2t_list, dataset_name):
+def save_optimized_data(d2t_list, dataset_name, source_column = 'source', target_column = 'target'):
 
     # load optimized data
     output = 'dataset/' + dataset_name + '/'
@@ -1300,9 +1315,9 @@ def save_optimized_data(d2t_list, dataset_name):
 
     for item in d2t_list:
         try:
-            source = item['source'] + ' [SEP] ' + item['old_target']
-            target = item['target']
-            new_d2t_list.append({'source': source, 'target': target})   
+            source = item[source_column] + ' [SEP] ' + item['old_target']
+            target = item[target_column]
+            new_d2t_list.append({source_column: source, target_column: target})   
         except:
             pass
 
@@ -1427,6 +1442,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
     output_dir1 = output_dir1.replace('//', '/')
 
     # load models
+    train_output1_best_metric, train_output2_best_metric = 0, 0
     if (load_trained == True):
         try:
             model = AutoModelForSeq2SeqLM.from_pretrained(d2t_model_path)
@@ -1438,10 +1454,17 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         # train from the beginning
         train_output2 = train(model_name, t2d_model, tokenizer, train_sub_data2, val_data2, num_train_epochs = train_epochs, \
                           batch_size = batch_size, output_dir = output_dir2, generation_max_len = max_len, train_type = 't2d')
+        train_output2_best_metric = train_output2.best_metric
+        del train_output2
+        
         train_output1 = train(model_name, model, tokenizer, train_sub_data1, val_data1, num_train_epochs = train_epochs, \
                           batch_size = batch_size, output_dir = output_dir1, generation_max_len = max_len, train_type = 'd2t')
         #print('train_output: ', train_output, dir(train_output))
         #train_loss = 1 - train_output.best_metric
+        train_output1_best_metric = train_output1.best_metric
+        del train_output1
+        
+        
     
     # get d2t train list
     d2t_train_list = []
@@ -1514,7 +1537,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         print('opt_t2d_pred_list: ', opt_t2d_pred_list[0], len(opt_t2d_pred_list))
 
         # create new d2t train set
-        d2t_current_list = create_train_set(d2t_pred_list, opt_d2t_pred_list, opt_t2d_pred_list, \
+        d2t_current_list = create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, \
                                             d2t_train_list1, d2t_current_list, source_column = source_column, \
                                             target_column = target_column, dataset_name = dataset_name)
         
@@ -1537,7 +1560,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             try: del item['prediction']
             except: pass
 
-        # add old data to reduce catastrophic forgetting
+        # add new data to reduce catastrophic forgetting
         if (merge_new_data == True):
             if (dataset_name == 'wida2wl'):
                 if (len(d2t_current_list) < len(d2t_train_list1)):
@@ -1547,9 +1570,10 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                                 item1['target'] == item2['target'] # replace new target
                     d2t_current_list = d2t_train_list1
                 else:
-                    print('The new data exceeds the old one in "wida2wl". There is nothing to merge!')
+                    print('The self-memory data exceeds the training data.')
                     return
             else:
+                # need to revise?
                 if (same_data == True):
                     d2t_current_list += d2t_train_list1[0:len(d2t_train_list1) - len(d2t_current_list)]
                 else:
@@ -1624,7 +1648,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         print('best_train_time: ', best_time1)
         print('best_metric (self-train): ', 1 - train_loss1)
         if (load_trained == False): 
-            print('best_metric (normal train in ' + str(train_epochs) + ' epoch(s)) :', train_output1.best_metric)
+            print('best_metric (normal train in ' + str(train_epochs) + ' epoch(s)) :', train_output1_best_metric)
         print('best_train_loss: ', train_loss1)
         if (self_train_t2d == True):
             print('----------------------------------')
@@ -1632,7 +1656,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             print('best_train_time: ', best_time2)
             print('best_metric (self-train): ', 1 - train_loss2)
             if (load_trained == False): 
-                print('best_metric (normal train in ' + str(train_epochs) + ' epoch(s)) :', train_output2.best_metric)
+                print('best_metric (normal train in ' + str(train_epochs) + ' epoch(s)) :', train_output2_best_metric)
             print('best_train_loss: ', train_loss2)
         print('***********************************************')
         
@@ -1749,10 +1773,10 @@ def main(args):
         
         self_train(args.model_name, model, tokenizer, data, use_force_words = use_force_words, \
                    use_fuse_loss = use_fuse_loss, decoding_type = args.decoding_type, batch_size = args.batch_size, \
-                   test_batch_size = args.test_batch_size, max_len = args.decoder_max_length, min_len = args.decoder_min_length, \
-                   train_epochs = args.epoch, self_train_epochs = args.self_epoch, output_dir = saved_path, \
-                   source_column = args.source_column, target_column = args.target_column, load_trained = load_trained, \
-                   d2t_model_path = args.d2t_model_path, t2d_model_path = args.t2d_model_path, \
+                   test_batch_size = args.test_batch_size, max_len = args.decoder_max_length, \
+                   min_len = args.decoder_min_length, train_epochs = args.epoch, self_train_epochs = args.self_epoch, \
+                   output_dir = saved_path, source_column = args.source_column, target_column = args.target_column, \
+                   load_trained = load_trained, d2t_model_path = args.d2t_model_path, t2d_model_path = args.t2d_model_path, \
                    dataset_name = dataset_name, train_percent = args.train_percent, merge_new_data = merge_new_data, \
                    self_train_t2d = self_train_t2d, same_data = same_data, \
                    no_self_mem = no_self_mem, same_data_type = same_data_type)
@@ -1776,7 +1800,8 @@ def main(args):
         test_dataset(args.model_name, model, tokenizer, use_force_words = use_force_words, input_file = args.test_file, \
                      batch_size = args.test_batch_size, decoding_type = args.decoding_type, output_dir = args.output_dir, \
                      self_pred = self_pred, dataset_name = dataset_name, source_prefix = source_prefix, \
-                     max_len = args.decoder_max_length, min_len = args.decoder_min_length)
+                     max_len = args.decoder_max_length, min_len = args.decoder_min_length, \
+                     source_column = args.source_column, target_column = args.target_column)
         end = time.time()
         print("Test time in seconds: ", (end - start))
 
