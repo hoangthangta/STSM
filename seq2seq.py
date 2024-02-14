@@ -1248,19 +1248,12 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
         source = item[source_column]
         target = item[target_column]
         
-        #d2t_pred = d2t_pred[0]
         d2t_values = extract_values([source], dataset_name = dataset_name)[0]
-
-        #t2d_pred = t2d_pred[0]
-        #t2d_values = extract_values([t2d_pred], dataset_name = dataset_name)[0]
-
+        
         opt_d2t_pred = opt_d2t_pred[0]
         opt_t2d_pred = opt_t2d_pred[0]
         opt_t2d_values = extract_values([opt_d2t_pred], dataset_name = dataset_name)[0]
 
-        #if (opt_d2t_pred == d2t_pred): opt_d2t_pred = d2t_pred
-        
-        # check conditions for optimized targets
         # value order (very rare cases)
         '''reg_str = '\s.*\s'.join(x for x in d2t_values)
         order = re.search(reg_str, opt_d2t_pred)
@@ -1285,10 +1278,11 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
             current_list = add_target(current_list, source, target, opt_d2t_pred, \
                                         source_column = source_column, target_column = target_column)
                                               
-        
-    for item in current_list:
+    '''for item in current_list: 
         print(item)
-        print('---------------')
+        print('---------------')'''
+     
+    print('current_list: ', len(current_list))
 
     # take out predictions from previous inference
     for item in current_list:
@@ -1297,6 +1291,7 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
             
     # remove repetitions    
     current_list = [dict(t) for t in {tuple(d.items()) for d in current_list}]
+    
     return current_list
 
 
@@ -1349,8 +1344,8 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         
         train_data1, val_data1 = data['d2t']['train'], data['d2t']['val']
         
-        if (same_data == True and same_data_type == 2):
-            output_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem/same_data_type_2'
+        if (same_data == True and same_data_type == 2): # no self-mem 2
+            output_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem2'
             output_dir1 = output_dir1.replace('//', '/')
 
             n_examples =  int((train_percent/100)*len(train_data1['train']))
@@ -1360,7 +1355,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             train_output1 = train(model_name, model, tokenizer, train_sub_data1, val_data1, num_train_epochs = train_epochs, \
                           batch_size = batch_size, output_dir = output_dir1, generation_max_len = max_len, train_type = 'd2t')
 
-            return # finish "no self-mem 2"
+            return 
             
         
         for i in range(1, train_epochs + 1):
@@ -1368,21 +1363,25 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             if (train_percent == 100):
                 train_sub_data1 = train_data1
             else:
-                if (same_data == False):
+                if (same_data == False): # no self-mem 3
                     seed = random.randint(1, 42)
                     train_sub_data1 = train_data1['train'].train_test_split(test_size=train_percent/100, seed=seed) 
                     train_sub_data1['train'] = train_sub_data1['test']
                     train_sub_data1.pop('test')
                     
                     #return
-                else: # same_data_type = 1
+                else: # no self-mem 1
                     n_examples =  int((train_percent/100)*len(train_data1['train']))
                     print('n_examples: ', n_examples)
                     train_sub_data1 = {'train': datasets.Dataset.from_dict(train_data1['train'][(i-1)*n_examples:i*n_examples])}
                     print(type(train_sub_data1))
                     
             print('train_sub_data1: ', len(train_sub_data1))
-            output_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem_' + str(i) 
+            output_dir1 = ''
+            if (same_data == False):
+                output_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem3/epoch_' + str(i)
+            else:
+                output_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem1/epoch_' + str(i)
             output_dir1 = output_dir1.replace('//', '/')
 
             model.train()
@@ -1408,7 +1407,11 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         # keep the best model only
         for j in range(1, train_epochs + 1):
             if (j == best_epoch): continue
-            del_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem_' + str(j) 
+            del_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem3/epoch_' + str(j) 
+            try: shutil.rmtree(del_dir1)
+            except: pass    
+            
+            del_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem1/epoch_' + str(j) 
             try: shutil.rmtree(del_dir1)
             except: pass    
         return
@@ -1463,7 +1466,6 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         #train_loss = 1 - train_output.best_metric
         train_output1_best_metric = train_output1.best_metric
         del train_output1
-        
         
     
     # get d2t train list
@@ -1546,7 +1548,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             print('There has no new data to train!')
             return
         if (len(d2t_current_list)//batch_size < 2):
-            print('There has not enought new data to train!')
+            print('There has not enough new data to train!')
             return 
         print('first item: ', d2t_current_list[0])
 
