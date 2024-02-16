@@ -1230,7 +1230,7 @@ def add_target(current_list, source, target, pred, source_column = 'source', tar
                 item[target_column] = pred
                 current_list.append(item)
 
-            if (pred == item[target_column]): current_list.remove(item) # remove the previous trained
+            #if (pred == item[target_column]): current_list.remove(item)
             break
 
     if (flag == False):
@@ -1284,7 +1284,7 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
      
     print('current_list: ', len(current_list))
 
-    # take out predictions from previous inference
+    # take out predictions from the previous inference
     for item in current_list:
         try: del item['prediction']
         except: pass
@@ -1322,13 +1322,30 @@ def save_optimized_data(d2t_list, dataset_name, source_column = 'source', target
     write_list_to_jsonl_file(output_file, new_d2t_list, file_access = 'w')
     print('New data is already saved!')
 
+
+
+def merge_data(list1, list2, source_column = '', target_column = ''):
+
+    #if (len(list1) > len(list2)): return False
     
+    for item2 in list2:
+        flag = False
+        for item1 in list1:
+            if (item2[source_column] == item1[source_column] and item2[target_column] == item1[target_column]):
+                flag = True
+                break
+        
+        if (flag == False):
+            list1.append(item2)
+    
+    return list1
+
 def self_train(model_name, model, tokenizer, data, use_force_words = False, use_fuse_loss = False, \
                decoding_type = 'greedy', num_beam = 4, batch_size = 4, test_batch_size = 16, max_len = 256, \
                min_len = 4, train_epochs = 1, self_train_epochs = 3, output_dir = 'output/', source_column = 'source', \
                target_column = 'target', load_trained = False, d2t_model_path = '', t2d_model_path = '', dataset_name = 'wida2wl', \
                train_percent = 10, merge_new_data = True, self_train_t2d = True, same_data = True, \
-               no_self_mem = False, same_data_type = 1):
+               no_self_mem = False, same_data_type = 1, same_data_size = True):
 
     """
         the D2T and T2D models must be trained first in 1 epoch
@@ -1354,7 +1371,6 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             train_sub_data1 = {'train': datasets.Dataset.from_dict(train_data1['train'][:n_examples])}
             train_output1 = train(model_name, model, tokenizer, train_sub_data1, val_data1, num_train_epochs = train_epochs, \
                           batch_size = batch_size, output_dir = output_dir1, generation_max_len = max_len, train_type = 'd2t')
-
             return 
             
         
@@ -1563,28 +1579,19 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             except: pass
 
         # add new data to reduce catastrophic forgetting
-        if (merge_new_data == True):
-            if (dataset_name == 'wida2wl'):
-                if (len(d2t_current_list) < len(d2t_train_list1)):
-                    for item1 in d2t_train_list1:
-                        for item2 in d2t_current_list:
-                            if (item1['source'] == item2['source']):
-                                item1['target'] == item2['target'] # replace new target
-                    d2t_current_list = d2t_train_list1
-                else:
-                    print('The self-memory data exceeds the training data.')
-                    return
+        if (merge_new_data == True):                       
+            if (same_data_size == True):
+                d2t_current_list += d2t_train_list1[0:len(d2t_train_list1) - len(d2t_current_list)]
+                
+                #d2t_current_list += random.sample(d2t_train_list1, len(d2t_train_list1) - len(d2t_current_list))
+                #d2t_current_list += random.sample(d2t_train_list1, len(d2t_train_list1) - len(d2t_current_list))
+                #d2t_current_list = merge_data(d2t_current_list, d2t_train_list1, source_column = source_column, target_column = target_column)
+                '''if (len(d2t_current_list) > n_examples):
+                    #d2t_current_list = random.sample(d2t_current_list, n_examples)
+                    d2t_current_list = d2t_current_list[0: n_examples]'''
             else:
-                # need to revise?
-                if (same_data == True):
-                    d2t_current_list += d2t_train_list1[0:len(d2t_train_list1) - len(d2t_current_list)]
-                else:
-                    d2t_current_list += d2t_train_list1
-            
-        # limit data only with n_examples
-        if (len(d2t_current_list) > n_examples):
-            d2t_current_list = random.sample(d2t_current_list, n_examples)
-
+                d2t_current_list += d2t_train_list1
+        
         # convert to t2d train set
         t2d_current_list = [{source_column: item[target_column], target_column: item[source_column]} for item in d2t_current_list]
 
@@ -1770,6 +1777,7 @@ def main(args):
         merge_new_data = (args.merge_new_data == 1)
         self_train_t2d = (args.self_train_t2d == 1)
         same_data = (args.same_data == 1)
+        same_data_size = (args.same_data_size == 1)
         no_self_mem = (args.no_self_mem == 1)
         same_data_type = args.same_data_type
         
@@ -1781,7 +1789,7 @@ def main(args):
                    load_trained = load_trained, d2t_model_path = args.d2t_model_path, t2d_model_path = args.t2d_model_path, \
                    dataset_name = dataset_name, train_percent = args.train_percent, merge_new_data = merge_new_data, \
                    self_train_t2d = self_train_t2d, same_data = same_data, \
-                   no_self_mem = no_self_mem, same_data_type = same_data_type)
+                   no_self_mem = no_self_mem, same_data_type = same_data_type, same_data_size = same_data_size)
 
         
         end = time.time()
@@ -1869,6 +1877,7 @@ if __name__ == "__main__":
     parser.add_argument('--same_data_type', type=int, default=1)
     parser.add_argument('--infer_multi_thread', type=int, default=0)
     parser.add_argument('--infer_max_workers', type=int, default=4)
+    parser.add_argument('--same_data_size', type=int, default=1)
     
     args = parser.parse_args()
     main(args)
