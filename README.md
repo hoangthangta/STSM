@@ -36,7 +36,7 @@ Here is the list of training parameters:
 * *same_data_type*: use with no_self_mem = 1
 * *infer_multi_thread*: use multi-threading in the inference time, (0 = No (default), 1 = Yes) # memory error may happen, not so much effective
 * *infer_max_workers*: use with *infer_multi_thread = 1* in the inference time, (default is 4) # memory error may happen, not so much effective
-
+* *same_data_size*: same data size in each training epoch (0 = No, 1 = Yes (default))
 
 # DART
 ### FULL TRAIN
