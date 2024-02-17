@@ -153,7 +153,7 @@ def batch_tokenize_preprocess(batch, tokenizer, max_source_length, max_target_le
     return batch
 
 def load_data(tokenizer, batch_size, encoder_max_length, decoder_max_length,  train_file = '', val_file = '', \
-              source_column = 'source', target_column = 'target', source_prefix = 'summarize# '):
+              source_column = 'source', target_column = 'target', source_prefix = 'summarize: ', percent_data = 100):
 
     """
         batch_size, encoder_max_length, decoder_max_length,  train_file = '', val_file = '', \
@@ -165,8 +165,10 @@ def load_data(tokenizer, batch_size, encoder_max_length, decoder_max_length,  tr
                                          target_column = args.target_column)
     """
     
-    train_data = datasets.load_dataset('json', data_files = train_file)
-    #train_data = datasets.load_dataset('json', data_files = train_file, split='train[:5%]')
+    if (percent_data = 100):
+        train_data = datasets.load_dataset('json', data_files = train_file)
+    else:
+        train_data = datasets.load_dataset('json', data_files = train_file, split='train[:' + str(percent_data) + '%]')
     
     val_data = datasets.load_dataset('json', data_files = val_file)
     
@@ -189,7 +191,7 @@ def load_data(tokenizer, batch_size, encoder_max_length, decoder_max_length,  tr
     return train_data, val_data
 
 def load_data2(tokenizer, batch_size, encoder_max_length, decoder_max_length, data_list, \
-               source_column = 'source', target_column = 'target', source_prefix = 'summarize# '):
+               source_column = 'source', target_column = 'target', source_prefix = 'summarize: '):
     
     #train_data = datasets.Dataset.from_dict(data_dict)
     train_data = datasets.Dataset.from_pandas(pd.DataFrame(data=data_list))
@@ -1254,7 +1256,7 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
         opt_t2d_pred = opt_t2d_pred[0]
         opt_t2d_values = extract_values([opt_d2t_pred], dataset_name = dataset_name)[0]
 
-        # value order (very rare cases)
+        # value order (too strict)
         '''reg_str = '\s.*\s'.join(x for x in d2t_values)
         order = re.search(reg_str, opt_d2t_pred)
         if order: order = True
@@ -1281,8 +1283,7 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
     '''for item in current_list: 
         print(item)
         print('---------------')'''
-     
-    print('current_list: ', len(current_list))
+    #print('current_list: ', len(current_list))
 
     # take out predictions from the previous inference
     for item in current_list:
@@ -1322,12 +1323,9 @@ def save_optimized_data(d2t_list, dataset_name, source_column = 'source', target
     write_list_to_jsonl_file(output_file, new_d2t_list, file_access = 'w')
     print('New data is already saved!')
 
-
-
 def merge_data(list1, list2, source_column = '', target_column = ''):
 
     #if (len(list1) > len(list2)): return False
-    
     for item2 in list2:
         flag = False
         for item1 in list1:
@@ -1337,6 +1335,8 @@ def merge_data(list1, list2, source_column = '', target_column = ''):
         
         if (flag == False):
             list1.append(item2)
+    
+    if (len(list1) > len(list2)): list1 = list1[0:len(list2)]
     
     return list1
 
@@ -1385,7 +1385,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                     train_sub_data1['train'] = train_sub_data1['test']
                     train_sub_data1.pop('test')
                     
-                    #return
+                    
                 else: # no self-mem 1
                     n_examples =  int((train_percent/100)*len(train_data1['train']))
                     print('n_examples: ', n_examples)
@@ -1467,7 +1467,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             model = AutoModelForSeq2SeqLM.from_pretrained(d2t_model_path)
             t2d_model = AutoModelForSeq2SeqLM.from_pretrained(t2d_model_path)
         except:
-            print('Please define "d2t_model_path" and "t2d_model_path" correctly!')
+            print('Please define "d2t_model_path" and "t2d_model_path" paths correctly!')
             return
     else:
         # train from the beginning
@@ -1581,11 +1581,10 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         # add new data to reduce catastrophic forgetting
         if (merge_new_data == True):                       
             if (same_data_size == True):
-                d2t_current_list += d2t_train_list1[0:len(d2t_train_list1) - len(d2t_current_list)]
-                
+                #d2t_current_list += d2t_train_list1[0:len(d2t_train_list1) - len(d2t_current_list)]           
                 #d2t_current_list += random.sample(d2t_train_list1, len(d2t_train_list1) - len(d2t_current_list))
-                #d2t_current_list += random.sample(d2t_train_list1, len(d2t_train_list1) - len(d2t_current_list))
-                #d2t_current_list = merge_data(d2t_current_list, d2t_train_list1, source_column = source_column, target_column = target_column)
+                d2t_current_list = merge_data(d2t_current_list, d2t_train_list1, source_column = source_column, \
+                                    target_column = target_column)
                 '''if (len(d2t_current_list) > n_examples):
                     #d2t_current_list = random.sample(d2t_current_list, n_examples)
                     d2t_current_list = d2t_current_list[0: n_examples]'''
@@ -1650,7 +1649,6 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         del t2d_model
         del t2d_train_data
         t2d_current_list = []
-
 
         print('***********************************************')
         print('results of data2text: ')        
@@ -1731,7 +1729,7 @@ def main(args):
         train_data, val_data = load_data(tokenizer, args.batch_size, args.encoder_max_length, \
                                          args.decoder_max_length, train_file = args.train_file, \
                                          val_file = args.var_file, source_column = args.source_column, \
-                                         target_column = args.target_column, source_prefix = source_prefix)
+                                         target_column = args.target_column, source_prefix = source_prefix, percent_data = args.percent_data)
                                          
         saved_path = args.output_dir + '/' +  convert_folder_name(args.model_name)
         saved_path = saved_path.replace('//', '/')
@@ -1878,6 +1876,7 @@ if __name__ == "__main__":
     parser.add_argument('--infer_multi_thread', type=int, default=0)
     parser.add_argument('--infer_max_workers', type=int, default=4)
     parser.add_argument('--same_data_size', type=int, default=1)
+    parser.add_argument('--percent_data', type=int, default=100)
     
     args = parser.parse_args()
     main(args)
