@@ -165,7 +165,7 @@ def load_data(tokenizer, batch_size, encoder_max_length, decoder_max_length,  tr
                                          target_column = args.target_column)
     """
     
-    if (percent_data = 100):
+    if (percent_data == 100):
         train_data = datasets.load_dataset('json', data_files = train_file)
     else:
         train_data = datasets.load_dataset('json', data_files = train_file, split='train[:' + str(percent_data) + '%]')
@@ -1865,7 +1865,7 @@ if __name__ == "__main__":
     parser.add_argument('--load_trained', type=int, default=0)
     parser.add_argument('--dataset_name', type=str, default='wida2wl')
     parser.add_argument('--train_percent', type=int, default=10)
-    parser.add_argument('--source_prefix', type=str, default='summarize# ')
+    parser.add_argument('--source_prefix', type=str, default='summarize: ')
     parser.add_argument('--merge_new_data', type=int, default=1)
     parser.add_argument('--self_train_t2d', type=int, default=1)
     parser.add_argument('--same_data', type=int, default=1)
@@ -1873,7 +1873,7 @@ if __name__ == "__main__":
     parser.add_argument('--t2d_opt_metric', type=str, default='osf')
     parser.add_argument('--no_self_mem', type=int, default=0)
     parser.add_argument('--same_data_type', type=int, default=1)
-    parser.add_argument('--infer_multi_thread', type=int, default=0)
+    parser.add_argument('--infer_multi_thread', type=int, default=1)
     parser.add_argument('--infer_max_workers', type=int, default=4)
     parser.add_argument('--same_data_size', type=int, default=1)
     parser.add_argument('--percent_data', type=int, default=100)
