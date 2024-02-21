@@ -1204,7 +1204,8 @@ def get_sentence_list(text):
 
 def optimize_target(source, target, dataset_name = 'wida2wl'):
 
-    sent_list = get_sentence_list(target)           
+    sent_list = get_sentence_list(target)   
+    #source = remove_prefix(source, source_prefix)
     values = list(set(extract_values([source], dataset_name)[0]))
     #print('values: ', values)fextract_values
     
@@ -1247,7 +1248,8 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
     for opt_d2t_pred, opt_t2d_pred, item in zip(opt_d2t_pred_list, \
                                                          opt_t2d_pred_list, train_list):
         
-        source = item[source_column]
+        source = remove_prefix(item[source_column], source_prefix)
+        #source = item[source_column]
         target = item[target_column]
         
         d2t_values = extract_values([source], dataset_name = dataset_name)[0]
@@ -1279,11 +1281,6 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
         if (con1 == True and con2 == True):
             current_list = add_target(current_list, source, target, opt_d2t_pred, \
                                         source_column = source_column, target_column = target_column)
-                                              
-    '''for item in current_list: 
-        print(item)
-        print('---------------')'''
-    #print('current_list: ', len(current_list))
 
     # take out predictions from the previous inference
     for item in current_list:
@@ -1292,6 +1289,11 @@ def create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, train_list, current_l
             
     # remove repetitions    
     current_list = [dict(t) for t in {tuple(d.items()) for d in current_list}]
+    
+    for item in current_list: 
+        print(item)
+        print('---------------')
+    print('current_list: ', len(current_list))
     
     return current_list
 
@@ -1345,7 +1347,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
                min_len = 4, train_epochs = 1, self_train_epochs = 3, output_dir = 'output/', source_column = 'source', \
                target_column = 'target', load_trained = False, d2t_model_path = '', t2d_model_path = '', dataset_name = 'wida2wl', \
                train_percent = 10, merge_new_data = True, self_train_t2d = True, same_data = True, \
-               no_self_mem = False, same_data_type = 1, same_data_size = True):
+               no_self_mem = False, same_data_type = 1, same_data_size = True, source_prefix = ''):
 
     """
         the D2T and T2D models must be trained first in 1 epoch
@@ -1359,7 +1361,7 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         train_loss1 = 1
         best_epoch = -1
         
-        train_data1, val_data1 = data['d2t']['train'], data['d2t']['val']
+        train_data1, val_data1 = data['d2t']['train'], data['d2t']['val'] # d2t data
         
         if (same_data == True and same_data_type == 2): # no self-mem 2
             output_dir1 = output_dir + '/' + dataset_name + '/data2text/no_self_mem2'
@@ -1528,43 +1530,45 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         else:
             d2t_train_list1 = random.sample(d2t_train_list, n_examples)
 
+        d2t_train_list1_no_prefix = [{source_column: remove_prefix(item[source_column], source_prefix), target_column: item[target_column]} for item in d2t_train_list1]
+
         # data to text predictions
         d2t_pred_list = generate_dataset(d2t_train_list1, model_name, model, tokenizer, use_force_words = use_force_words, \
                                          decoding_type = decoding_type, num_beam = num_beam, batch_size = test_batch_size, \
-                                         max_len = max_len, min_len = min_len, source_column = source_column)
+                                         max_len = max_len, min_len = min_len, source_column = source_column, source_prefix = source_prefix)
         print('d2t_pred_list: ', d2t_pred_list[0], len(d2t_pred_list))
 
         # text to data predictions
-        t2d_train_list = [{source_column:pred[0]} for pred in d2t_pred_list]
+        t2d_train_list = [{source_column:source_prefix + pred[0]} for pred in d2t_pred_list] 
         t2d_pred_list = generate_dataset(t2d_train_list, model_name, t2d_model, tokenizer, use_force_words = use_force_words, \
                                          decoding_type = decoding_type, num_beam = num_beam, batch_size = test_batch_size, \
-                                         max_len = max_len, min_len = min_len, source_column = source_column)
+                                         max_len = max_len, min_len = min_len, source_column = source_column, source_prefix = source_prefix)
         print('t2d_pred_list: ', t2d_pred_list[0], len(t2d_pred_list))
         
         # optimize data to text predictions
-        opt_d2t_pred_list = [[optimize_target(item[source_column], pred[0])] for pred, item in zip(d2t_pred_list, d2t_train_list1)]  
+        opt_d2t_pred_list = [[optimize_target(item[source_column], pred[0])] for pred, item in zip(d2t_pred_list, d2t_train_list1_no_prefix)]  
         print('opt_d2t_pred_list: ', opt_d2t_pred_list[0], len(opt_d2t_pred_list))
         
-        opt_train_list = [{source_column:pred[0]} for pred in opt_d2t_pred_list]
+        opt_train_list = [{source_column:source_prefix + pred[0]} for pred in opt_d2t_pred_list]
         print('opt_train_list: ', opt_train_list[0], len(opt_train_list))
         
         # optimize text to data predictions
         opt_t2d_pred_list = generate_dataset(opt_train_list, model_name, t2d_model, tokenizer, use_force_words = use_force_words, \
                                              decoding_type = decoding_type, num_beam = num_beam, batch_size = test_batch_size, \
-                                             max_len = max_len, min_len = min_len, source_column = source_column)
+                                             max_len = max_len, min_len = min_len, source_column = source_column, source_prefix = source_prefix)
         print('opt_t2d_pred_list: ', opt_t2d_pred_list[0], len(opt_t2d_pred_list))
 
         # create new d2t train set
         d2t_current_list = create_train_set(opt_d2t_pred_list, opt_t2d_pred_list, \
-                                            d2t_train_list1, d2t_current_list, source_column = source_column, \
+                                            d2t_train_list1_no_prefix, d2t_current_list, source_column = source_column, \
                                             target_column = target_column, dataset_name = dataset_name)
         
         # end training conditions
         if (len(d2t_current_list) == 0):
-            print('There has no new data to train!')
+            print('There has no data to train!')
             return
         if (len(d2t_current_list)//batch_size < 2):
-            print('There has not enough new data to train!')
+            print('There has not enough data to train!')
             return 
         print('first item: ', d2t_current_list[0])
 
@@ -1578,28 +1582,32 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             try: del item['prediction']
             except: pass
 
+
         # add new data to reduce catastrophic forgetting
-        if (merge_new_data == True):                       
+        if (merge_new_data == True):     
+
             if (same_data_size == True):
-                #d2t_current_list += d2t_train_list1[0:len(d2t_train_list1) - len(d2t_current_list)]           
-                #d2t_current_list += random.sample(d2t_train_list1, len(d2t_train_list1) - len(d2t_current_list))
-                d2t_current_list = merge_data(d2t_current_list, d2t_train_list1, source_column = source_column, \
+                #d2t_current_list += d2t_train_list1_no_prefix[0:len(d2t_train_list1_no_prefix) - len(d2t_current_list)]           
+                #d2t_current_list += random.sample(d2t_train_list1_no_prefix, len(d2t_train_list1_no_prefix) - len(d2t_current_list))
+                
+                
+                d2t_current_list = merge_data(d2t_current_list, d2t_train_list1_no_prefix, source_column = source_column, \
                                     target_column = target_column)
                 '''if (len(d2t_current_list) > n_examples):
                     #d2t_current_list = random.sample(d2t_current_list, n_examples)
                     d2t_current_list = d2t_current_list[0: n_examples]'''
             else:
-                d2t_current_list += d2t_train_list1
+                d2t_current_list += d2t_train_list1_no_prefix
         
         # convert to t2d train set
         t2d_current_list = [{source_column: item[target_column], target_column: item[source_column]} for item in d2t_current_list]
 
         # load new data for d2t and t2d
         d2t_train_data = load_data2(tokenizer, batch_size, max_len, max_len, d2t_current_list, \
-                                    source_column = source_column, target_column = target_column)
+                                    source_column = source_column, target_column = target_column, source_prefix =  source_prefix)
 
         t2d_train_data = load_data2(tokenizer, batch_size, max_len, max_len, t2d_current_list, \
-                                    source_column = source_column, target_column = target_column)
+                                    source_column = source_column, target_column = target_column, source_prefix =  source_prefix)
 
         # train new d2t data with a single epoch
         model.train()                         
@@ -1787,11 +1795,11 @@ def main(args):
                    load_trained = load_trained, d2t_model_path = args.d2t_model_path, t2d_model_path = args.t2d_model_path, \
                    dataset_name = dataset_name, train_percent = args.train_percent, merge_new_data = merge_new_data, \
                    self_train_t2d = self_train_t2d, same_data = same_data, \
-                   no_self_mem = no_self_mem, same_data_type = same_data_type, same_data_size = same_data_size)
+                   no_self_mem = no_self_mem, same_data_type = same_data_type, same_data_size = same_data_size, source_prefix = source_prefix)
 
         
         end = time.time()
-        print("Self-traning time in seconds: ", (end - start))
+        print("Self-training time in seconds: ", (end - start))
         
     elif (args.mode == 'test'):
 
