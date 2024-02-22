@@ -139,7 +139,7 @@ class CustomTrainer(Seq2SeqTrainer):
         return (loss, outputs) if return_outputs else loss
 
 def batch_tokenize_preprocess(batch, tokenizer, max_source_length, max_target_length, \
-                              source_column = 'source', target_column = 'target', source_prefix = 'summarize# '):
+                              source_column = 'source', target_column = 'target', source_prefix = 'summarize: '):
     source, target = batch[source_column], batch[target_column]
     source = [source_prefix + item for item in source]
     
@@ -147,7 +147,7 @@ def batch_tokenize_preprocess(batch, tokenizer, max_source_length, max_target_le
     batch = {k: v for k, v in source_tokenized.items()}
     target_tokenized = tokenizer(target, padding="max_length", truncation=True, max_length=max_target_length)
 
-    # Ignore padding in the loss
+    # ignore padding in the loss
     batch["labels"] = [[-100 if token == tokenizer.pad_token_id else token for token in l]
                        for l in target_tokenized["input_ids"]]                
     return batch
@@ -200,7 +200,6 @@ def load_data2(tokenizer, batch_size, encoder_max_length, decoder_max_length, da
             batch, tokenizer, encoder_max_length, decoder_max_length, source_column, target_column, source_prefix),
             batched=True,
             batch_size=batch_size,
-            #remove_columns=['source', 'target']
             remove_columns = train_data.column_names
         )
 
@@ -480,11 +479,10 @@ def train(model_name, model, tokenizer, train_data, val_data, num_train_epochs =
     )
    
     trainer.train()
-    #trainer.evaluate()
     
+    #trainer.evaluate()
     #trainer.save_state()
     #trainer.save_model(output_dir)
-
     # see inside the train object
     #import inspect
     #from pprint import pprint
@@ -750,7 +748,7 @@ def generate_dataset(dataset, model_name, model, tokenizer, use_force_words = Fa
         dataset = read_list_from_jsonl_file(input_file)
 
     for item in dataset:
-        #item['source'] = source_prefix + item['source']
+        
         item[source_column] = source_prefix + item[source_column]
     
     pred_list = []
@@ -992,13 +990,11 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
 
     # add prefix
     for item in dataset: 
-        #item['source'] = source_prefix + item['source']
         item[source_column] = source_prefix + item[source_column]
 
     if (self_pred == True):
         for item in dataset:
             try:
-                #item['source'] = item['source'].split(' [SEP] ')[0] + ' [SEP] ' + item['prediction'][0]
                 item[source_column] = item[source_column].split(' [SEP] ')[0] + ' [SEP] ' + item['prediction'][0]
             except:
                 print('Warning: The dataset contains no "prediction"!')
@@ -1088,9 +1084,8 @@ def test_dataset(model_name, model, tokenizer, use_force_words = False, input_fi
     
         for i, pred, item in zip(range(0, len(dataset)), pred_list, dataset):
             sys.stdout.write('Checking item: %d/%d \t Model: %s \r' % (i + 1, len(dataset), model_name))
-            #sys.stdout.flush()
+            sys.stdout.flush()
 
-            #inp = item['source'] # source prefix?
             inp = remove_prefix(item[source_column], source_prefix)
             
             values = extract_values([inp], dataset_name = dataset_name)[0]
@@ -1327,7 +1322,6 @@ def save_optimized_data(d2t_list, dataset_name, source_column = 'source', target
 
 def merge_data(list1, list2, source_column = '', target_column = ''):
 
-    #if (len(list1) > len(list2)): return False
     for item2 in list2:
         flag = False
         for item1 in list1:
@@ -1531,6 +1525,8 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
             d2t_train_list1 = random.sample(d2t_train_list, n_examples)
 
         d2t_train_list1_no_prefix = [{source_column: remove_prefix(item[source_column], source_prefix), target_column: item[target_column]} for item in d2t_train_list1]
+        
+        print('d2t_train_list1_no_prefix: ', d2t_train_list1_no_prefix[0], len(d2t_train_list1_no_prefix))
 
         # data to text predictions
         d2t_pred_list = generate_dataset(d2t_train_list1, model_name, model, tokenizer, use_force_words = use_force_words, \
@@ -1587,13 +1583,11 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         if (merge_new_data == True):     
 
             if (same_data_size == True):
-                #d2t_current_list += d2t_train_list1_no_prefix[0:len(d2t_train_list1_no_prefix) - len(d2t_current_list)]           
-                #d2t_current_list += random.sample(d2t_train_list1_no_prefix, len(d2t_train_list1_no_prefix) - len(d2t_current_list))
-                
-                
-                d2t_current_list = merge_data(d2t_current_list, d2t_train_list1_no_prefix, source_column = source_column, \
-                                    target_column = target_column)
-                '''if (len(d2t_current_list) > n_examples):
+                #d2t_current_list = merge_data(d2t_current_list, d2t_train_list1_no_prefix, source_column = source_column, \
+                #                    target_column = target_column)
+                d2t_current_list += d2t_train_list1_no_prefix[0:len(d2t_train_list1_no_prefix) - len(d2t_current_list)]           
+                '''d2t_current_list += random.sample(d2t_train_list1_no_prefix, len(d2t_train_list1_no_prefix) - len(d2t_current_list))
+                if (len(d2t_current_list) > n_examples):
                     #d2t_current_list = random.sample(d2t_current_list, n_examples)
                     d2t_current_list = d2t_current_list[0: n_examples]'''
             else:
@@ -1604,10 +1598,10 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
 
         # load new data for d2t and t2d
         d2t_train_data = load_data2(tokenizer, batch_size, max_len, max_len, d2t_current_list, \
-                                    source_column = source_column, target_column = target_column, source_prefix =  source_prefix)
+                                    source_column = source_column, target_column = target_column, source_prefix = source_prefix)
 
         t2d_train_data = load_data2(tokenizer, batch_size, max_len, max_len, t2d_current_list, \
-                                    source_column = source_column, target_column = target_column, source_prefix =  source_prefix)
+                                    source_column = source_column, target_column = target_column, source_prefix = source_prefix)
 
         # train new d2t data with a single epoch
         model.train()                         
