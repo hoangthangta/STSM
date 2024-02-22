@@ -1746,7 +1746,7 @@ def main(args):
     elif (args.mode == 'self_train'):
 
         start = time.time()
-        tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = False)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = True)
         bad_words = create_bad_words(args)
         
         model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
@@ -1798,7 +1798,7 @@ def main(args):
     elif (args.mode == 'test'):
 
         start = time.time()
-        tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = False)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case = False, add_prefix_space = True)
         bad_words = create_bad_words(args)
         
         model = AutoModelForSeq2SeqLM.from_pretrained(args.output_dir)
