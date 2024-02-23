@@ -1325,7 +1325,8 @@ def merge_data(list1, list2, source_column = '', target_column = ''):
     for item2 in list2:
         flag = False
         for item1 in list1:
-            if (item2[source_column] == item1[source_column] and item2[target_column] == item1[target_column]):
+            #if (item2[source_column] == item1[source_column] and item2[target_column] == item1[target_column]):
+            if (item2[source_column] == item1[source_column]):
                 flag = True
                 break
         
@@ -1333,6 +1334,7 @@ def merge_data(list1, list2, source_column = '', target_column = ''):
             list1.append(item2)
     
     if (len(list1) > len(list2)): list1 = list1[0:len(list2)]
+    elif (len(list1) < len(list2)): list1 += list2[0:len(list2)-len(list1)]
     
     return list1
 
@@ -1583,13 +1585,15 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         if (merge_new_data == True):     
 
             if (same_data_size == True):
-                #d2t_current_list = merge_data(d2t_current_list, d2t_train_list1_no_prefix, source_column = source_column, \
-                #                    target_column = target_column)
-                d2t_current_list += d2t_train_list1_no_prefix[0:len(d2t_train_list1_no_prefix) - len(d2t_current_list)]           
-                '''d2t_current_list += random.sample(d2t_train_list1_no_prefix, len(d2t_train_list1_no_prefix) - len(d2t_current_list))
-                if (len(d2t_current_list) > n_examples):
+                d2t_current_list = merge_data(d2t_current_list, d2t_train_list1_no_prefix, source_column = source_column, \
+                                    target_column = target_column)
+                #d2t_current_list += d2t_train_list1_no_prefix[0:len(d2t_train_list1_no_prefix) - len(d2t_current_list)]           
+                #d2t_current_list += random.sample(d2t_train_list1_no_prefix, len(d2t_train_list1_no_prefix) - len(d2t_current_list))
+                '''if (len(d2t_current_list) > n_examples):
                     #d2t_current_list = random.sample(d2t_current_list, n_examples)
-                    d2t_current_list = d2t_current_list[0: n_examples]'''
+                    d2t_current_list = d2t_current_list[0: n_examples]
+                elif (len(d2t_current_list) < n_examples):
+                    d2t_current_list += random.sample(d2t_train_list1_no_prefix, len(d2t_train_list1_no_prefix) - len(d2t_current_list))'''
             else:
                 d2t_current_list += d2t_train_list1_no_prefix
         
