@@ -168,8 +168,10 @@ def load_data(tokenizer, batch_size, encoder_max_length, decoder_max_length,  tr
     if (percent_data == 100):
         train_data = datasets.load_dataset('json', data_files = train_file)
     else:
+        from datasets import DatasetDict
         train_data = datasets.load_dataset('json', data_files = train_file, split='train[:' + str(percent_data) + '%]')
-    
+        train_data = DatasetDict({'train': train_data})
+
     val_data = datasets.load_dataset('json', data_files = val_file)
     
     train_data = train_data.map(lambda batch: batch_tokenize_preprocess(
@@ -847,24 +849,54 @@ def compute_metrics_detail(inputs, input_values, preds, labels, result_dict = {}
     can_tar_dict, can_source_dict = {}, {}
 
     if (mode == 'train'): 
-        print('Calculating SPM...')
-        score = compute_spm_batch(preds, input_values)
-        result_dict['spm'] = score['spm']
-
-        '''print('Calculating PARENT...')
-        parent_inputs, parent_labels, parent_preds = normalize_parent(inputs, labels, preds, dataset_name = dataset_name)
-        precision, recall, f1 = parent(parent_preds, parent_labels, parent_inputs, avg_results=True, n_jobs=16)
-        result_dict['parent'] = f1'''
-
-        print('Calculating BLEU...')
-        score = compute_bleu_batch(preds, labels)
-        result_dict['bleu'] = score['bleu']
-
-        print('Calculating METEOR...')
-        score = compute_meteor_batch(preds, labels)
-        result_dict['meteor'] = score['meteor']
     
-        return result_dict
+        if (dataset_name == 'wida2wl'):
+            print('Calculating SPM...')
+            score = compute_spm_batch(preds, input_values)
+            result_dict['spm'] = score['spm']
+            
+            print('Calculating REP...')
+            score = compute_repetition_batch(preds)
+            result_dict['rep'] = score['rep']
+            
+            print('Calculating ROUGE...')
+            score = compute_rouge_batch(preds, labels)
+            for k, v in score.items(): can_tar_dict[k] = v
+            score = compute_rouge_batch(preds, inputs)
+            for k, v in score.items(): can_source_dict[k] = v
+
+            '''print('Calculating BERTSCORE...')
+            score = compute_bertscore_batch(preds, labels)
+            for k, v in score.items(): can_tar_dict[k] = v
+            score = compute_bertscore_batch(preds, inputs)
+            for k, v in score.items(): can_source_dict[k] = v'''
+    
+            # fused metric
+            scores = [result_dict['spm'], can_tar_dict['rouge1_precision']]
+            result_dict['fused_metric'] = fuse_score(scores)
+
+            result_dict['prediction_vs_target'] = can_tar_dict
+            result_dict['prediction_vs_source'] = can_source_dict
+        
+        else:
+            print('Calculating SPM...')
+            score = compute_spm_batch(preds, input_values)
+            result_dict['spm'] = score['spm']
+
+            '''print('Calculating PARENT...')
+            parent_inputs, parent_labels, parent_preds = normalize_parent(inputs, labels, preds, dataset_name = dataset_name)
+            precision, recall, f1 = parent(parent_preds, parent_labels, parent_inputs, avg_results=True, n_jobs=16)
+            result_dict['parent'] = f1'''
+
+            print('Calculating BLEU...')
+            score = compute_bleu_batch(preds, labels)
+            result_dict['bleu'] = score['bleu']
+
+            print('Calculating METEOR...')
+            score = compute_meteor_batch(preds, labels)
+            result_dict['meteor'] = score['meteor']
+    
+            return result_dict
 
     print('Calculating SPM...')
     score = compute_spm_batch(preds, input_values)
