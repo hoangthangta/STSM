@@ -1554,7 +1554,8 @@ def self_train(model_name, model, tokenizer, data, use_force_words = False, use_
         print('n_examples: ', n_examples)
         
         if (same_data == True):
-            d2t_train_list1 = d2t_train_list[(i-1)*n_examples:i*n_examples]
+            # start with the second data part because the first part is for training T2D and D2T models in the beginning
+            d2t_train_list1 = d2t_train_list[i*n_examples:(i+1)*n_examples]
         else:
             d2t_train_list1 = random.sample(d2t_train_list, n_examples)
 
